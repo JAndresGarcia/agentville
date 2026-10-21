@@ -1510,95 +1510,9 @@ export function register(on, options) {
   })
 
   // Classic events carry the transcript's path; the title is read from it.
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('classic.SessionStart', async ($, e, next) => {
-    try {
-      transcript = e.transcript_path
-      void retitle($).catch(() => {})
-    } catch { /* a failure here still passes the event on, once */ }
-
-    return next(e)
-  })
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('classic.UserPromptSubmit', async ($, e, next) => {
-    try {
-      transcript = e.transcript_path
-      void retitle($).catch(() => {})
-      void relink($).catch(() => {})
-    } catch { /* a failure here still passes the prompt on, once */ }
-
-    return next(e)
-  })
 
   // What each agent does, from the session's own events. These only observe: they return `next`'s answer.
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('turn.start', async ($, e, next) => {
-    if (!e.agentId) mainTurn = e.turnId
-    await mark($, (b, now) => {
-      if (!e.agentId) delete b.ask // a new turn: the question is behind it (the suggested sessions stay)
-      setAgent(b, e.agentId ?? MAIN, now, { state: 'trabajando', activity: t('act.thinking'), cmd: null })
-    })
-
-    return next(e)
-  })
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('turn.complete', async ($, e, next) => {
-    const done = () => (e.reason === 'error' ? { state: 'error' as const, activity: t('act.turnFailed') }
-      : e.isAborted ? { state: 'inactivo' as const, activity: t('act.stopped') }
-      : { state: 'terminado' as const, activity: e.agentId ? t('act.delivered') : t('act.answered') })
-    await mark($, (b, now) => {
-      setAgent(b, e.agentId ?? MAIN, now, { ...done(), cmd: null, req: null, ...(e.answer ? { answer: e.answer } : {}) })
-      // The main turn ended with its plan still open: the list says so until the plan is written again.
-      if (!e.agentId) { if (openOf(b) > 0) b.openSteps = openOf(b); else delete b.openSteps }
-      // A turn that failed or was stopped leaves no question; one that ended asking (or suggesting sessions) waits for you.
-      if (!e.agentId && (e.reason === 'error' || e.isAborted)) delete b.ask
-      else if (!e.agentId && hasItem(b, now)) setAgent(b, MAIN, now, waitPatch(b))
-    })
-    if (!e.agentId) { mainTurn = null; void retitle($).catch(() => {}); void measure($, true).catch(() => {}) }
-    // A subagent's tokens add up turn by turn (the session's dollars already include them).
-    const u = e.usage, key = e.agentId
-    if (key && u) await mark($, b => { const ag = b.agents[key]; if (ag) { ag.tokens = (ag.tokens ?? 0) + u.input_tokens + u.output_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens; ag.model = u.model } })
-
-    return next(e)
-  })
   // Every row of the main conversation passes here as it is kept: Claude's text as it writes it, and your prompts.
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('session.append', async ($, e, next) => {
-    try {
-      const c = chatFrom(e.message)
-      // A subagent's words go to its own desk: selecting it shows them.
-      if (e.agentId) {
-        const key = e.agentId
-        if (c?.who === 'claude' && c.text) await mark($, b => { const ag = b.agents[key]; if (ag) ag.said = addSaid(ag.said, c.text) })
-      } else {
-        // Its question and suggested sessions (wrap_up, start_session and their results); a message you typed (queued too,
-        // never a tool result or an envelope) answers the question.
-        if (beat) {
-          const b = beat, now = await $.clock.now()
-          let changed = asksFrom(b, e.message, now)
-          if (c?.who === 'tú' && b.ask) { delete b.ask; changed = true }
-          if (changed) await mark($, (x, at) => unwait(x, at))
-          // A start or dismiss of any session's suggestion (one withdrawn from here by hand) settles it in every pane.
-          const cl = closingsFrom(e.message)
-          for (const [tu, id, kind] of cl.uses) { if (closing.size >= 50) closing.clear(); closing.set(tu, [id, kind]) }
-          for (const [tu, text] of cl.results) { const c = closing.get(tu); if (c) { closing.delete(tu); if (closedOk(c[1], c[0], text)) await offerDone($, c[0]) } }
-        }
-        // A prompt sent while the session is busy waits in its queue: it shows as queued until it is delivered.
-        if (c && e.door === 'queue') c.queued = true
-        if (c?.who === 'tú') c.at = await $.clock.now() // the pane's outbox drops what it sent once a row of yours is newer
-        if (c) {
-          // A file sent by a relative path is read from the session's folder; thumb takes absolute paths only.
-          const refs = imagesOf(e.message), rel = (r: ImgRef) => 'path' in r && !r.path.startsWith('/')
-          const cwd = refs.some(rel) ? await $.session.cwd().catch(() => '') : '' // no cwd: the relative ref stays relative and thumb refuses it
-          const pics = (await Promise.all(refs.map(r => thumb($, rel(r) && cwd ? { path: `${cwd}/${(r as { path: string }).path}` } : r)))).filter(x => x !== null)
-          if (pics.length) c.pics = pics
-          await mark($, b => pushChat(b, c))
-        }
-      }
-    } catch { /* a failure here still passes the row on, once */ }
-
-    return next(e)
-  })
   // A background command's end arrives as a notification prompt; it closes that task on the board.
   // With a team flow on (Agentville's or a skill), every subagent is asked for a plan it keeps current, so its desk shows
   // how far it got (one without the task-list tool still gets an action plan drawn from its steps).
