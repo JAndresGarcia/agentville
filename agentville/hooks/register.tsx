@@ -62,7 +62,7 @@ export const filling = new Set<string>()
 // "↗ Ir al chat". Pruned on every render.
 export const elsewhere = new Set<string>()
 // Start and dismiss calls this session made, by tool_use id, until their results come back (closingsFrom).
-export const closing = new Map<string, [id: string, kind: Closing]>()
+export const closing = new Map<string, [string, Closing]>()
 let toolNames: { at: number; names: string[] } | null = null
 export async function toolsNow($: EngineInterface, now: number) {
   if (!toolNames || now - toolNames.at > 60000) toolNames = { at: now, names: (await $.tool.list().catch(() => [])).map(x => x.name) }
