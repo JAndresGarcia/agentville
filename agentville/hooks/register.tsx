@@ -63,11 +63,6 @@ export const filling = new Set<string>()
 export const elsewhere = new Set<string>()
 // Start and dismiss calls this session made, by tool_use id, until their results come back (closingsFrom).
 export const closing = new Map<string, [string, Closing]>()
-let toolNames: { at: number; names: string[] } | null = null
-export async function toolsNow($: EngineInterface, now: number) {
-  if (!toolNames || now - toolNames.at > 60000) toolNames = { at: now, names: (await $.tool.list().catch(() => [])).map(x => x.name) }
-  return toolNames.names
-}
 export async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
 
 export function register(on, options) {
