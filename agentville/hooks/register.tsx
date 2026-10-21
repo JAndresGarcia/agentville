@@ -69,31 +69,7 @@ export async function toolsNow($: EngineInterface, now: number) {
   return toolNames.names
 }
 export async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
-export async function readJson($: EngineInterface, path: string): Promise<T | null> {
-  try { return JSON.parse(await $.fs.read(path)) as T } catch { return null }
-}
-// A mailbox's orders; a missing or malformed file has none.
-export async function ordersAt($: EngineInterface, path: string): Promise<unknown[]> {
-  const cmds = (await readJson($, path))?.cmds
-  return Array.isArray(cmds) ? cmds : []
-}
-export async function hiddenOf($: EngineInterface): Promise<Record<string, number>> {
-  const v = await $.store.get(HIDDEN_KEY).catch(() => null)
-  return v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number')) : {}
-}
-// The pane reads every live session's transcript itself: its title, and for a session on an older copy of the mod (a
-// beat with no `mod`) its question and suggested sessions. Found once per id (looked for again every 30 s while
-// missing), looked at at most every 3 s (every 30 s when only its title is needed), read (its last 400 KB, argv only) only when its size or time changed.
-type Transcript = { path: string | null; at: number; sig: string; name: string | null; asks: Pick<Beat, 'ask' | 'offers'> | null }
-export const transcripts = new Map<string, Transcript>()
-const ARCHIVED_EVERY = 60000, ARCHIVED_MAX = 60
-export let archivedAt = -Infinity, archivedIds = new Set<string>()
-export async function readKey($: EngineInterface) {
-  const had = await $.store.get(MAILBOX_KEY)
-  return typeof had === 'string' && had ? had : null
-}
 
-// Puts an order in a session's mailbox. Only the pane writes mailboxes, so a read-modify-write is safe.
 export function register(on, options) {
   on('ui.render', { component: 'Pane', requestId: 'agentville' }, async ($, e) => {
     const ui = $.ui.resolve(e)
