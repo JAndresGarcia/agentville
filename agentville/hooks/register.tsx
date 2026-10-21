@@ -205,7 +205,7 @@ export async function deliver($: EngineInterface, text: string) {
 // /reload-plugins is dropped.
 export async function submitOrder($: EngineInterface, text: string) { if (!isReload(text)) await $.prompt.submit({ text: asPrompt(text), asUser: true }) }
 // A process's stdout when it exits 0, else null. Argv only.
-export function out($: EngineInterface, argv: string[]) { return $.process.run(argv).then(r => (r.exitCode === 0 ? r.stdout : null), () => null) }
+export function runOut($: EngineInterface, argv: string[]) { return $.process.run(argv).then(r => (r.exitCode === 0 ? r.stdout : null), () => null) }
 export async function record($: EngineInterface, path: string) {
   const r = await $.process.run(['/usr/bin/head', '-c', String(RECORD_MAX), path], { timeoutMs: 5000 }).catch(() => null)
   return r?.exitCode === 0 ? recordOf(r.stdout) : null
@@ -246,9 +246,9 @@ export function queueSub($: EngineInterface, out: SubOut) {
   $.ui.invalidate('ui.render')
 }
 export const acts = new Map<string, Act>()
-export function failed($: EngineInterface, err: unknown) { return $.ui.toast(t('toast.orderFailed', { err: err instanceof Error ? err.message : String(err) }).slice(0, 160)) }
+export function orderFailed($: EngineInterface, err: unknown) { return $.ui.toast(t('toast.orderFailed', { err: err instanceof Error ? err.message : String(err) }).slice(0, 160)) }
 // Orders go to the session's mailbox; the toast says it left, the session acts within a couple of seconds.
-export function sendOrder($: EngineInterface, sessionId: string, cmd: Omit<Cmd, 'n' | 'sig'>, toast: string, done?: (ok: boolean) => void) { return order($, sessionId, cmd).then(() => { done?.(true); return $.ui.toast(toast) }, (err: unknown) => { done?.(false); return failed($, err) }) }
+export function sendOrder($: EngineInterface, sessionId: string, cmd: Omit<Cmd, 'n' | 'sig'>, toast: string, done?: (ok: boolean) => void) { return order($, sessionId, cmd).then(() => { done?.(true); return $.ui.toast(toast) }, (err: unknown) => { done?.(false); return orderFailed($, err) }) }
 // What a tool call from the pane came to: done; declined (a hook or you said no) or stopped (aborted: Esc on the app's
 // dialog), after which nothing else is tried; or failed (no such tool, an error, the app's refusal), where the prompt
 // may go instead. The app's own session tools (mcp__ccd_session*) win over a same-named one.
@@ -763,9 +763,9 @@ async function thumb($: EngineInterface, ref: ImgRef) {
   try {
     await ensureRoot($)
     await $.process.run(['/bin/mkdir', '-p', dir]).catch(() => null)
-    if ('data' in ref) { await $.fs.write(b64, ref.data); if ((await out($, ['/usr/bin/base64', '-D', '-i', b64, '-o', src])) === null) return null }
-    if ((await out($, [SIPS, '-Z', '240', '-s', 'format', 'jpeg', '-s', 'formatOptions', '70', src, '--out', jpg])) === null) return null
-    const size = await out($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', jpg]), w = px(size, 'Width'), ht = px(size, 'Height')
+    if ('data' in ref) { await $.fs.write(b64, ref.data); if ((await runOut($, ['/usr/bin/base64', '-D', '-i', b64, '-o', src])) === null) return null }
+    if ((await runOut($, [SIPS, '-Z', '240', '-s', 'format', 'jpeg', '-s', 'formatOptions', '70', src, '--out', jpg])) === null) return null
+    const size = await runOut($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', jpg]), w = px(size, 'Width'), ht = px(size, 'Height')
     const { base64 } = await $.fs.read(jpg, { as: 'bytes' })
     if (!w || !ht || !base64) return null
     await $.fs.write(`${dir}/${file}.txt`, base64)
@@ -786,15 +786,15 @@ async function openZoom($: EngineInterface, p: ChatPic) {
   if (orig) {
     const dir = IMAGES(await homeDir($)), big = `${dir}/${p.file}-big.big.jpg`, part = `${dir}/${p.file}-big.s.jpg`
     try {
-      const wide = px(await out($, [SIPS, '-g', 'pixelWidth', orig]), 'Width') > 900
-      if ((await out($, [SIPS, ...(wide ? ['--resampleWidth', '900'] : []), '-s', 'format', 'jpeg', '-s', 'formatOptions', '40', orig, '--out', big])) !== null) {
-        const size = await out($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', big])
+      const wide = px(await runOut($, [SIPS, '-g', 'pixelWidth', orig]), 'Width') > 900
+      if ((await runOut($, [SIPS, ...(wide ? ['--resampleWidth', '900'] : []), '-s', 'format', 'jpeg', '-s', 'formatOptions', '40', orig, '--out', big])) !== null) {
+        const size = await runOut($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', big])
         w = px(size, 'Width'); ht = px(size, 'Height')
       }
       // The desktop stops drawing a pane whose tree grows too heavy (a whole screenshot did), so the viewer keeps ~100 KB
       // of strips; a taller image shows its top and the rest stays a click away in Vista Previa.
       for (let y = 0, used = 0; w && y < ht; y += STRIP) {
-        if ((await out($, [SIPS, '-c', String(STRIP), String(w), '--cropOffset', String(y), '0', big, '--out', part])) === null) break
+        if ((await runOut($, [SIPS, '-c', String(STRIP), String(w), '--cropOffset', String(y), '0', big, '--out', part])) === null) break
         const { base64 } = await $.fs.read(part, { as: 'bytes' })
         if (!base64 || used + base64.length > ZOOM_BUDGET) break
         strips.push(base64); used += base64.length
@@ -1055,11 +1055,11 @@ async function reply($: EngineInterface, a: Extract<Act, { k: 'reply' }>) {
     const whole = !!q && !isCutCmd(q.cmd) && !isMaskedCmd(q.cmd) && !isHiddenCmd(q.cmd) && !(q.held !== undefined && q.held <= await $.clock.now())
     const b = whole ? await readJson($, `${beatsDir(await homeDir($))}/${a.dept}.json`) : null
     if (!Object.values(b?.agents ?? {}).some(x => x.req === a.req)) { answered.delete(a.req); return $.ui.toast(t('ask.expired', { chat: name })) }
-  } catch (err) { answered.delete(a.req); return failed($, err) } // nothing sent: the request shows again
+  } catch (err) { answered.delete(a.req); return orderFailed($, err) } // nothing sent: the request shows again
   return order($, a.dept, { kind: a.verdict, req: a.req }).then(() => {
     $.ui.invalidate('ui.render')
     return $.ui.toast(t('toast.rejected'))
-  }, (err: unknown) => { answered.delete(a.req); $.ui.invalidate('ui.render'); return failed($, err) })
+  }, (err: unknown) => { answered.delete(a.req); $.ui.invalidate('ui.render'); return orderFailed($, err) })
 }
 // A reply to the Jefe's question goes as its prompt, the very text the card showed, while the session still asks that
 // question. Marked before anything is awaited, so two presses at once send one order. It never goes to a selected
