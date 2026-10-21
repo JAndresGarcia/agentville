@@ -55,6 +55,8 @@ desktop app, install from your clone as [Install and update](docs/install-and-up
   dependency.
 - **Tested.** New logic comes with a test next to the existing ones in `agentville/tests/`, and the whole suite
   passes. `bash scripts/check-plugin-files.sh` passes too: no file in `agentville/` over 256 KiB (split a big one).
+  So does `bash scripts/check-register-rules.sh`: `hooks/register.tsx` keeps the rules Anthropic's plugin directory
+  enforces (the script names each one it finds broken).
 - **Style.** Match the surrounding code: TypeScript, short names, comments only for the why the code cannot show.
   No em dash in any text.
 - **Changelog.** Add a line under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md) for anything a user would notice.

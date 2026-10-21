@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, PluginOptions, UiCopyArgs } from 'claude-code'
+import type { EngineInterface, UiCopyArgs, UiCopyResult, UiPressArgument } from 'claude-code'
 import type { AgentvilleChat, AgentvilleDept, AgentvilleReply, AgentvilleUsage, AgentvilleWorld } from '../types'
 import { CMD_MAX, DISMISS, cmdTitle, isHiddenCmd, isImg, isToolCall, MAIN, METAS_MAX, SLEEP_MS, asksFrom, pressTitle, closedOk, closingsFrom, fillTextOf, isIdle, addSaid, addStep, asCommand, guardedCommand, guardedPath, HOLD_MS, isCutCmd, isMaskedCmd, trusted, TASK, offerOrderOk, beatsDir, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, commandsFile, controlFile, doing, endStep, isTaskList, metasOf, newBeat, notesFrom, openOf, pending, pushChat, roleOf, setAgent, titleFrom, viewerFile, OFFER_TTL, REFUSED, asksOfTranscript, asPrompt, signOf, chatPic, picHt } from './beat'
 import type { Beat, ChatPic, Cmd, CmdRow, ImgRef, Closing } from './beat'
@@ -44,6 +44,9 @@ export {
 } from './pure'
 export type { AckR, Tour, FillR, SubOut, Act, Elsewhere, Out, Page } from './pure'
 // The pane's request id, written here where its hooks' filters name it.
+type RowPics = readonly ChatPic[]
+type OfferEntry = [string, OfferAck]
+type MarkEntry = [string, number]
 const PANE = 'agentville'
 // The pane's state: declared here, beside every read and update of it through `$`.
 const world = atom({ plugin: 'agentville', key: 'world' } as const, null)
@@ -80,7 +83,7 @@ async function putMark($: EngineInterface, key: string, marks: Record<string, nu
 export async function offerDone($: EngineInterface, id: string) { return putMark($, OFFERS_DONE, await doneOffers($), id) }
 export async function offerAcks($: EngineInterface): Promise<Record<string, OfferAck>> {
   const v = await $.store.get(OFFER_ACKS).catch(() => null)
-  return Object.fromEntries(Object.entries(v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}).filter((e): e is [string, OfferAck] => {
+  return Object.fromEntries(Object.entries(v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}).filter((e): e is OfferEntry => {
     const x = e[1] as Partial<OfferAck> | null
     return !!x && typeof x === 'object' && typeof x.n === 'number' && typeof x.at === 'number' && ACK_RS.includes(x.r) && (x.why === undefined || typeof x.why === 'string')
   }))
@@ -91,24 +94,25 @@ export async function ackOffer($: EngineInterface, id: string, a: Omit<OfferAck,
   await $.store.set(OFFER_ACKS, Object.fromEntries([...Object.entries(all).filter(([k, x]) => k !== id && now - x.at < ACK_KEEP), [id, { ...a, at: now }]]))
 }
 // Start and dismiss calls this session made, by tool_use id, until their results come back (closingsFrom).
-export const closing = new Map<string, [id: string, kind: Closing]>()
+type ClosingEntry = [id: string, kind: Closing]
+export const closing = new Map<string, ClosingEntry>()
 let toolNames: { at: number; names: string[] } | null = null
 export async function toolsNow($: EngineInterface, now: number) {
   if (!toolNames || now - toolNames.at > 60000) toolNames = { at: now, names: (await $.tool.list().catch(() => [])).map(x => x.name) }
   return toolNames.names
 }
-export async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
+export async function homeDir($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
 export async function readJson<T>($: EngineInterface, path: string): Promise<T | null> {
   try { return JSON.parse(await $.fs.read(path)) as T } catch { return null }
 }
 // A mailbox's orders; a missing or malformed file has none.
 export async function ordersAt($: EngineInterface, path: string): Promise<unknown[]> {
-  const cmds = (await readJson<{ cmds?: unknown }>($, path))?.cmds
+  const cmds = (await readJson($, path) as { cmds?: unknown } | null)?.cmds
   return Array.isArray(cmds) ? cmds : []
 }
 export async function hiddenOf($: EngineInterface): Promise<Record<string, number>> {
   const v = await $.store.get(HIDDEN_KEY).catch(() => null)
-  return v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number')) : {}
+  return v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is MarkEntry => typeof e[1] === 'number')) : {}
 }
 // The pane reads every live session's transcript itself: its title, and for a session on an older copy of the mod (a
 // beat with no `mod`) its question and suggested sessions. Found once per id (looked for again every 30 s while
@@ -120,7 +124,7 @@ export async function transcriptOf($: EngineInterface, b: Beat, now: number) {
   let s = transcripts.get(b.id)
   if (s && now - s.at < (s.path && !isMod(b.mod) ? 3000 : 30000)) return s
   if (!s?.path) {
-    const dir = `${await home($)}/.claude/projects`
+    const dir = `${await homeDir($)}/.claude/projects`
     let path: string | null = null
     for (const d of await $.fs.list(dir).catch(() => [])) {
       if (d.kind === 'dir' && (await $.fs.exists(`${dir}/${d.name}/${b.id}.jsonl`).catch(() => false))) { path = `${dir}/${d.name}/${b.id}.jsonl`; break }
@@ -149,7 +153,7 @@ export async function lookArchived($: EngineInterface, beats: Beat[], now: numbe
   // shortcut: ARCHIVED_MAX records a look keep the find's argv short; past that many live sessions the rest keep their
   // last answer. Rotate them if that ever happens.
   const ids = all.slice(0, ARCHIVED_MAX)
-  const app = APP_DIR(await home($)), r = ids.length ? await $.process.run(sessionsFind(app, ids), { timeoutMs: 5000 }).catch(() => null) : null
+  const app = APP_DIR(await homeDir($)), r = ids.length ? await $.process.run(sessionsFind(app, ids), { timeoutMs: 5000 }).catch(() => null) : null
   if (ids.length && !r) return
   const found = r?.stdout.split('\n') ?? [], next = new Set(all.slice(ARCHIVED_MAX).filter(id => archivedIds.has(id)))
   for (let i = 0; i < ids.length; i += 6) {
@@ -169,7 +173,7 @@ export async function readKey($: EngineInterface) {
 export async function order($: EngineInterface, sessionId: string, cmd: Omit<Cmd, 'n' | 'sig'>): Promise<number> {
   let key = await readKey($)
   if (!key) { key = crypto.randomUUID(); await $.store.set(MAILBOX_KEY, key) }
-  const path = controlFile(await home($), sessionId)
+  const path = controlFile(await homeDir($), sessionId)
   await ensureRoot($)
   const signed = { ...cmd, n: (await $.clock.now()) * 1000 + Math.floor(Math.random() * 1000) }
   await $.fs.write(path, JSON.stringify({ cmds: [...(await ordersAt($, path)), { ...signed, sig: await signOf(key, signed, sessionId) }].slice(-30) }))
@@ -199,7 +203,7 @@ export async function deliver($: EngineInterface, text: string) {
 // /reload-plugins is dropped.
 export async function submitOrder($: EngineInterface, text: string) { if (!isReload(text)) await $.prompt.submit({ text: asPrompt(text), asUser: true }) }
 // A process's stdout when it exits 0, else null. Argv only.
-export function out($: EngineInterface, argv: string[]) { return $.process.run(argv).then(r => (r.exitCode === 0 ? r.stdout : null), () => null) }
+export function runOut($: EngineInterface, argv: string[]) { return $.process.run(argv).then(r => (r.exitCode === 0 ? r.stdout : null), () => null) }
 export async function record($: EngineInterface, path: string) {
   const r = await $.process.run(['/usr/bin/head', '-c', String(RECORD_MAX), path], { timeoutMs: 5000 }).catch(() => null)
   return r?.exitCode === 0 ? recordOf(r.stdout) : null
@@ -207,7 +211,7 @@ export async function record($: EngineInterface, path: string) {
 // Made private before anything is written into it, once per module (a folder made earlier with 755 is fixed too).
 let rootReady: Promise<unknown> | null = null
 export function ensureRoot($: EngineInterface) { return (rootReady ??= (async () => {
-  const root = `${await home($)}/.claude/agentville`
+  const root = `${await homeDir($)}/.claude/agentville`
   await $.process.run(['/bin/mkdir', '-p', '-m', '700', root]).catch(() => null)
   await $.process.run(['/bin/chmod', '700', root]).catch(() => null)
 })()) }
@@ -221,7 +225,7 @@ export async function flowNow($: EngineInterface, option: string | undefined) {
 }
 async function usedBefore($: EngineInterface) {
   for (const k of [INTRO, MAILBOX_KEY, HIDDEN_KEY]) if ((await $.store.get(k).catch(() => undefined)) !== undefined) return true
-  const dir = beatsDir(await home($))
+  const dir = beatsDir(await homeDir($))
   for (const f of await $.fs.list(dir).catch(() => [])) {
     if (!f.name.endsWith('.json')) continue
     const b = await $.fs.read(`${dir}/${f.name}`).then(t => JSON.parse(t) as Partial<Beat>, () => null)
@@ -232,16 +236,17 @@ async function usedBefore($: EngineInterface) {
 // Messages relayed to a subagent: drawn in its conversation as "Tú → <name> (en camino)" from the send until it writes
 // a newer row (its words differ from those at the send, `base`), its state changes after the send (`since`, so words
 // repeated as they were still count) or OUTBOX_TTL passes; the last 5 per subagent.
-export const subOutbox = new Map<string, { text: string; base: string; at: number }[]>()
+type SubQueue = { text: string; base: string; at: number }[]
+export const subOutbox = new Map<string, SubQueue>()
 export function queueSub($: EngineInterface, out: SubOut) {
   if (!out) return
   subOutbox.set(out.agent, [...(subOutbox.get(out.agent) ?? []), out.o].slice(-5))
   $.ui.invalidate('ui.render')
 }
 export const acts = new Map<string, Act>()
-export function failed($: EngineInterface, err: unknown) { return $.ui.toast(t('toast.orderFailed', { err: err instanceof Error ? err.message : String(err) }).slice(0, 160)) }
+export function orderFailed($: EngineInterface, err: unknown) { return $.ui.toast(t('toast.orderFailed', { err: err instanceof Error ? err.message : String(err) }).slice(0, 160)) }
 // Orders go to the session's mailbox; the toast says it left, the session acts within a couple of seconds.
-export function sendOrder($: EngineInterface, sessionId: string, cmd: Omit<Cmd, 'n' | 'sig'>, toast: string, done?: (ok: boolean) => void) { return order($, sessionId, cmd).then(() => { done?.(true); return $.ui.toast(toast) }, (err: unknown) => { done?.(false); return failed($, err) }) }
+export function sendOrder($: EngineInterface, sessionId: string, cmd: Omit<Cmd, 'n' | 'sig'>, toast: string, done?: (ok: boolean) => void) { return order($, sessionId, cmd).then(() => { done?.(true); return $.ui.toast(toast) }, (err: unknown) => { done?.(false); return orderFailed($, err) }) }
 // What a tool call from the pane came to: done; declined (a hook or you said no) or stopped (aborted: Esc on the app's
 // dialog), after which nothing else is tried; or failed (no such tool, an error, the app's refusal), where the prompt
 // may go instead. The app's own session tools (mcp__ccd_session*) win over a same-named one.
@@ -263,7 +268,8 @@ export function fillToast($: EngineInterface, r: AckR) { return $.ui.toast(t(r i
 // text once more than when it was sent (a session on an older mod stamps no rows); or OUTBOX_TTL passes. The session
 // itself lists a queued message only once it reaches its queue, which a pending permission holds back.
 // `to`: the subagent a relayed message is for (its "Tú → <name> (en cola)"); absent for the Jefe.
-export const outbox = new Map<string, { text: string; sent: string; base: number; at: number; to?: string }[]>()
+type OutQueue = { text: string; sent: string; base: number; at: number; to?: string }[]
+export const outbox = new Map<string, OutQueue>()
 export function queueOut($: EngineInterface, out: Out) {
   if (!out) return
   outbox.set(out.id, [...(outbox.get(out.id) ?? []), out.o].slice(-5))
@@ -361,7 +367,7 @@ const drafts = new Map<string, string>()
 let sentCount = 0
 // Images you copied and attached to the next message, per session (files the pane saved from the clipboard), each with
 // its thumbnail for the composer (null when sips could not make one).
-const attached = new Map<string, { path: string; pic: Awaited<ReturnType<typeof thumb>> }[]>()
+const attached = new Map<string, { path: string; pic: ChatPic | null }[]>()
 const picCache = new Map<string, string>() // thumbnail file -> its base64 jpeg, the 40 last drawn
 let hitsKeep = { n: 0, rows: new Map<number, number>() }
 let drawTimes: number[] = [], msgTimes: number[] = []
@@ -460,7 +466,7 @@ async function redrawBg($: EngineInterface) {
 // A beat's id goes into paths (its mailbox, its commands): one that is not a plain id, or not its own file's name, is
 // dropped.
 async function readBeats($: EngineInterface) {
-  const dir = beatsDir(await home($))
+  const dir = beatsDir(await homeDir($))
   const files = await $.fs.list(dir).catch(() => [])
   const beats: Beat[] = []
   for (const f of files) {
@@ -523,7 +529,7 @@ async function sync($: EngineInterface, reads = false) {
   if (prev && arrived && !live.includes(arrived)) { await useLang($); const ad = next.depts.find(d => d.id === arrived.dept); await $.ui.toast(t('toast.waits', { role: roleName(arrived.role, ad), office: ad?.name ?? '' })) }
 }
 const permToasted = new Set<string>() // the requests toasted as they arrived (sync)
-async function viewing($: EngineInterface) { await ensureRoot($); await $.fs.write(viewerFile(await home($)), JSON.stringify({ at: await $.clock.now() })).catch(() => {}) }
+async function viewing($: EngineInterface) { await ensureRoot($); await $.fs.write(viewerFile(await homeDir($)), JSON.stringify({ at: await $.clock.now() })).catch(() => {}) }
 // Every second while the pane is open here: say a placed pane is open, and read the heartbeats every 3 s, every
 // second while someone waits for an answer from the pane. With the pane gone it stops.
 let syncedAt = 0
@@ -570,8 +576,8 @@ async function startBeat($: EngineInterface) {
   if (loadedVer) b.mod = loadedVer
   // Where the app keeps the transcript; the classic events below say it too, but a session started from another
   // session may never get them.
-  transcript ||= `${await home($)}/.claude/projects/${cwd.replace(/[^a-zA-Z0-9]/g, '-')}/${b.id}.jsonl`
-  carryOver(b, await readJson<Beat>($, `${beatsDir(await home($))}/${b.id}.json`))
+  transcript ||= `${await homeDir($)}/.claude/projects/${cwd.replace(/[^a-zA-Z0-9]/g, '-')}/${b.id}.jsonl`
+  carryOver(b, await readJson($, `${beatsDir(await homeDir($))}/${b.id}.json`))
   if (hasItem(b, now) && b.agents[MAIN]?.state !== 'trabajando') setAgent(b, MAIN, now, waitPatch(b)) // a reload keeps the question waiting in the despacho
   // The rows written while the module was being swapped (the /reload-plugins row itself) come back from the
   // transcript; the thumbnails already made are kept.
@@ -589,7 +595,7 @@ async function mark($: EngineInterface, fn: (b: Beat, now: number) => void) {
   if (!beat) return
   await useLang($) // the activities written below are in the pane's language
   fn(beat, await $.clock.now())
-  const text = JSON.stringify(beat), path = `${beatsDir(await home($))}/${beat.id}.json`
+  const text = JSON.stringify(beat), path = `${beatsDir(await homeDir($))}/${beat.id}.json`
   saving = saving.then(() => $.fs.write(path, text)).catch(() => {}) // a lost beat is replaced by the next one
 }
 
@@ -606,7 +612,7 @@ async function listen($: EngineInterface) {
   if (!beat) return
   listening = true
   try {
-    const cmds = await trusted(await ordersAt($, controlFile(await home($), beat.id)), await readKey($), await $.clock.now(), beat.id, seen)
+    const cmds = await trusted(await ordersAt($, controlFile(await homeDir($), beat.id)), await readKey($), await $.clock.now(), beat.id, seen)
     for (const c of cmds.sort((x, y) => x.n - y.n)) {
       seen = c.n
       if (c.kind === 'msg' && c.text) void submitOrder($, c.text).catch(() => {})
@@ -678,7 +684,7 @@ async function syncCheck($: EngineInterface) {
   const now = await $.clock.now()
   if (!beat || !loadedVer || now - syncAt < SYNC_EVERY) return
   syncAt = now
-  const r = await syncTick($, { root: $.plugin.root, home: await home($), loaded: loadedVer })
+  const r = await syncTick($, { root: $.plugin.root, home: await homeDir($), loaded: loadedVer })
   if ((r.stuck ?? undefined) !== beat?.syncStuck) await mark($, b => { if (r.stuck) b.syncStuck = r.stuck; else delete b.syncStuck })
   if (!ticker) return
   const v = r.disk?.clean ? r.disk.ver : null // a checkout mid-edit counts as no version: no badges
@@ -714,8 +720,8 @@ async function sendMsg($: EngineInterface, sessionId: string, text: string, fail
 // The image on the clipboard, saved as a png (osascript); null when the clipboard holds none.
 async function clipboardImage($: EngineInterface) {
   if (hasSips === false) return null
-  const path = `${IMAGES(await home($))}/up-${await $.clock.now()}.png`
-  await $.process.run(['/bin/mkdir', '-p', IMAGES(await home($))]).catch(() => null)
+  const path = `${IMAGES(await homeDir($))}/up-${await $.clock.now()}.png`
+  await $.process.run(['/bin/mkdir', '-p', IMAGES(await homeDir($))]).catch(() => null)
   const r = await $.process.run(['/usr/bin/osascript', '-e', 'on run argv', '-e', 'set f to open for access (POSIX file (item 1 of argv)) with write permission',
     '-e', 'set eof f to 0', '-e', 'write (the clipboard as «class PNGf») to f', '-e', 'close access f', '-e', 'end run', path]).catch(() => null)
   if (r?.exitCode === 0) return path
@@ -747,7 +753,7 @@ function rmFiles($: EngineInterface, files: string[]) { return $.process.run(['/
 async function thumb($: EngineInterface, ref: ImgRef) {
   if (hasSips === false) return null
   if ('path' in ref && !(await isImageFile($, ref.path))) return null
-  const dir = IMAGES(await home($)), file = `${beat?.id ?? 'x'}-${await $.clock.now()}-${Math.floor(Math.random() * 1e6)}`
+  const dir = IMAGES(await homeDir($)), file = `${beat?.id ?? 'x'}-${await $.clock.now()}-${Math.floor(Math.random() * 1e6)}`
   // A pasted image is kept whole beside its thumbnail, for a click to open; a named file is opened where it is.
   const ext = 'data' in ref ? ({ 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' } as Record<string, string>)[ref.media] ?? 'png' : ''
   const src = 'data' in ref ? `${dir}/${file}.${ext}` : ref.path, b64 = `${dir}/${file}.b64`, jpg = `${dir}/${file}.jpg`
@@ -755,9 +761,9 @@ async function thumb($: EngineInterface, ref: ImgRef) {
   try {
     await ensureRoot($)
     await $.process.run(['/bin/mkdir', '-p', dir]).catch(() => null)
-    if ('data' in ref) { await $.fs.write(b64, ref.data); if ((await out($, ['/usr/bin/base64', '-D', '-i', b64, '-o', src])) === null) return null }
-    if ((await out($, [SIPS, '-Z', '240', '-s', 'format', 'jpeg', '-s', 'formatOptions', '70', src, '--out', jpg])) === null) return null
-    const size = await out($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', jpg]), w = px(size, 'Width'), ht = px(size, 'Height')
+    if ('data' in ref) { await $.fs.write(b64, ref.data); if ((await runOut($, ['/usr/bin/base64', '-D', '-i', b64, '-o', src])) === null) return null }
+    if ((await runOut($, [SIPS, '-Z', '240', '-s', 'format', 'jpeg', '-s', 'formatOptions', '70', src, '--out', jpg])) === null) return null
+    const size = await runOut($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', jpg]), w = px(size, 'Width'), ht = px(size, 'Height')
     const { base64 } = await $.fs.read(jpg, { as: 'bytes' })
     if (!w || !ht || !base64) return null
     await $.fs.write(`${dir}/${file}.txt`, base64)
@@ -776,17 +782,17 @@ async function openZoom($: EngineInterface, p: ChatPic) {
   const strips: string[] = []
   let w = 0, ht = 0
   if (orig) {
-    const dir = IMAGES(await home($)), big = `${dir}/${p.file}-big.big.jpg`, part = `${dir}/${p.file}-big.s.jpg`
+    const dir = IMAGES(await homeDir($)), big = `${dir}/${p.file}-big.big.jpg`, part = `${dir}/${p.file}-big.s.jpg`
     try {
-      const wide = px(await out($, [SIPS, '-g', 'pixelWidth', orig]), 'Width') > 900
-      if ((await out($, [SIPS, ...(wide ? ['--resampleWidth', '900'] : []), '-s', 'format', 'jpeg', '-s', 'formatOptions', '40', orig, '--out', big])) !== null) {
-        const size = await out($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', big])
+      const wide = px(await runOut($, [SIPS, '-g', 'pixelWidth', orig]), 'Width') > 900
+      if ((await runOut($, [SIPS, ...(wide ? ['--resampleWidth', '900'] : []), '-s', 'format', 'jpeg', '-s', 'formatOptions', '40', orig, '--out', big])) !== null) {
+        const size = await runOut($, [SIPS, '-g', 'pixelWidth', '-g', 'pixelHeight', big])
         w = px(size, 'Width'); ht = px(size, 'Height')
       }
       // The desktop stops drawing a pane whose tree grows too heavy (a whole screenshot did), so the viewer keeps ~100 KB
       // of strips; a taller image shows its top and the rest stays a click away in Vista Previa.
       for (let y = 0, used = 0; w && y < ht; y += STRIP) {
-        if ((await out($, [SIPS, '-c', String(STRIP), String(w), '--cropOffset', String(y), '0', big, '--out', part])) === null) break
+        if ((await runOut($, [SIPS, '-c', String(STRIP), String(w), '--cropOffset', String(y), '0', big, '--out', part])) === null) break
         const { base64 } = await $.fs.read(part, { as: 'bytes' })
         if (!base64 || used + base64.length > ZOOM_BUDGET) break
         strips.push(base64); used += base64.length
@@ -817,7 +823,7 @@ async function publishCommands($: EngineInterface) {
   await retitle($) // a title the app sets mid-turn shows without waiting for the turn's end
   const rows: CmdRow[] = (await $.command.list()).map(c => [c.name, c.description.replace(/\s+/g, ' ').slice(0, 200), c.source])
   const text = JSON.stringify(rows)
-  const file = commandsFile(await home($), beat.id)
+  const file = commandsFile(await homeDir($), beat.id)
   if (text !== commandsText || !(await $.fs.exists(file))) { commandsText = text; await $.fs.write(file, text) }
 }
 
@@ -853,7 +859,7 @@ async function relink($: EngineInterface) {
   const fresh = now - relinkFrom < RELINK_FRESH
   if (now - relinkAt < (fresh ? RELINK_FAST : RELINK_EVERY)) return
   relinkAt = now
-  const me = beat.id, dir = `${APP_DIR(await home($))}/claude-code-sessions`
+  const me = beat.id, dir = `${APP_DIR(await homeDir($))}/claude-code-sessions`
   let hit = relinkOwn, own = hit ? await record($, `${dir}/${hit}`) : null
   if (own?.cliSessionId !== me) {
     own = null; hit = relinkOwn = null
@@ -907,7 +913,7 @@ async function openPane($: EngineInterface) {
 // file lately (see `tick`).
 async function paneSeen($: EngineInterface, now: number) {
   if ((await $.ui.panes()).some(p => p.id === PANE && p.isPlaced)) return true
-  const viewer = await readJson<{ at: number }>($, viewerFile(await home($)))
+  const viewer: { at: number } | null = await readJson($, viewerFile(await homeDir($)))
   return !!viewer && now - viewer.at < VIEWER_FRESH
 }
 // Where a path lands with every symlink followed: the file's own, else its folder's plus its name (a file not there
@@ -926,14 +932,14 @@ function heldImage(images: string) {
 }
 let aliveAt = 0
 async function tidy($: EngineInterface, now: number, mine: string) {
-  const root = `${await home($)}/.claude/agentville`
+  const root = `${await homeDir($)}/.claude/agentville`
   const old = (sub: string, ttl = (_: string) => WEEK) => $.fs.list(`${root}/${sub}`).catch(() => []).then(fs => fs.filter(f => f.kind === 'file' && now - f.mtimeMs > ttl(f.name)))
   const held = heldImage(`${root}/images`)
   const gone = (await old('images', n => (n.endsWith('.txt') ? WEEK : DAY))).map(f => `${root}/images/${f.name}`).filter(f => !held(f))
   for (const f of await old('sessions')) {
     const id = f.name.replace(/\.json$/, '')
     if (id === mine || !/^[\w-]+$/.test(id)) continue
-    gone.push(`${root}/sessions/${id}.json`, commandsFile(await home($), id), controlFile(await home($), id))
+    gone.push(`${root}/sessions/${id}.json`, commandsFile(await homeDir($), id), controlFile(await homeDir($), id))
   }
   if (gone.length) await $.process.run(['/bin/rm', '-f', ...gone]).catch(() => null)
   // The reload marks (sync:<id>) older versions stored: this session's own (it reloads no more), and those of sessions
@@ -974,7 +980,7 @@ async function pickLang($: EngineInterface, l: 'es' | 'en') {
 // `/agentville refresh` (or limpiar): every office nobody is working in leaves the map until its next activity, and the
 // files of sessions ended long ago (not this one) go. Stale marks (a session gone, or back at work) are pruned.
 async function refresh($: EngineInterface) {
-  const beats = await readBeats($), now = await $.clock.now(), ht = await home($), mine = await $.session.id()
+  const beats = await readBeats($), now = await $.clock.now(), ht = await homeDir($), mine = await $.session.id()
   const had = await hiddenOf($), byId = new Map(beats.map(b => [b.id, b]))
   const old = beats.filter(b => b.ended && now - b.at >= SLEEP_MS && b.id !== mine && /^[\w-]+$/.test(b.id))
   const marks = Object.fromEntries(Object.entries(had).filter(([id, at]) => (byId.get(id)?.at ?? Infinity) <= at && !old.some(b => b.id === id)))
@@ -1004,7 +1010,7 @@ async function measureDisk($: EngineInterface, now: number) {
     if ((!due.df && !due.du) || !lockFree((await $.store.get(DISK_LOCK).catch(() => null)) as number | null, now)) return
     await $.store.set(DISK_LOCK, now)
     locked = true
-    const ht = await home($), mod = `${ht}/.claude/agentville`
+    const ht = await homeDir($), mod = `${ht}/.claude/agentville`
     const next: DiskCache = { at: 0, duAt: 0, freeKb: null, modKb: null, wt: null, sizes: [], sessions: {}, ...cache }
     // Saved after each step, so free space never waits on the slow du; a redraw only when what shows changed.
     const shown = (c: DiskCache | null) => JSON.stringify([c?.freeKb ?? null, c?.modKb ?? null, c?.wt?.length ?? null, c?.sizes?.length ? c.sizes : null])
@@ -1045,13 +1051,13 @@ async function reply($: EngineInterface, a: Extract<Act, { k: 'reply' }>) {
     const w = usable(await read($, world)), q = w?.agents.find(x => x.dept === a.dept && x.req === a.req)
     name = starterIn(w, a.dept)?.name ?? a.dept
     const whole = !!q && !isCutCmd(q.cmd) && !isMaskedCmd(q.cmd) && !isHiddenCmd(q.cmd) && !(q.held !== undefined && q.held <= await $.clock.now())
-    const b = whole ? await readJson<Beat>($, `${beatsDir(await home($))}/${a.dept}.json`) : null
+    const b: Beat | null = whole ? await readJson($, `${beatsDir(await homeDir($))}/${a.dept}.json`) : null
     if (!Object.values(b?.agents ?? {}).some(x => x.req === a.req)) { answered.delete(a.req); return $.ui.toast(t('ask.expired', { chat: name })) }
-  } catch (err) { answered.delete(a.req); return failed($, err) } // nothing sent: the request shows again
+  } catch (err) { answered.delete(a.req); return orderFailed($, err) } // nothing sent: the request shows again
   return order($, a.dept, { kind: a.verdict, req: a.req }).then(() => {
     $.ui.invalidate('ui.render')
     return $.ui.toast(t('toast.rejected'))
-  }, (err: unknown) => { answered.delete(a.req); $.ui.invalidate('ui.render'); return failed($, err) })
+  }, (err: unknown) => { answered.delete(a.req); $.ui.invalidate('ui.render'); return orderFailed($, err) })
 }
 // A reply to the Jefe's question goes as its prompt, the very text the card showed, while the session still asks that
 // question. Marked before anything is awaited, so two presses at once send one order. It never goes to a selected
@@ -1229,7 +1235,7 @@ async function redirectReload($: EngineInterface, sessionId: string) {
 // every session counts as another: it fails closed.
 async function commandThere($: EngineInterface, sessionId: string, text: string) {
   if ((beat && sessionId === beat.id) || !text.startsWith('/')) return null
-  const theirs = await readJson<unknown[]>($, commandsFile(await home($), sessionId)).catch(() => null)
+  const theirs = (await readJson($, commandsFile(await homeDir($), sessionId)).catch(() => null)) as unknown[] | null
   const names = [...(Array.isArray(theirs) ? theirs.map(r => (Array.isArray(r) ? r[0] : null)) : []), ...(await $.command.list().catch(() => [])).map(c => c.name)]
   const run = asCommand(text, names.filter((n): n is string => typeof n === 'string'))
   return run ? `/${run.command}`.slice(0, 60) : null
@@ -1238,7 +1244,7 @@ async function commandThere($: EngineInterface, sessionId: string, text: string)
 // saying which are current, asleep, or need /reload-plugins typed in their chat. With one such session, its chat opens.
 async function syncCmd($: EngineInterface, name: string) {
   await sync($).catch(() => {})
-  const disk = await diskOf($, $.plugin.root, await home($), loadedVer ?? undefined).catch(() => null)
+  const disk = await diskOf($, $.plugin.root, await homeDir($), loadedVer ?? undefined).catch(() => null)
   const ver = disk?.clean ? disk.ver : null
   if (!ver) return t('cmd.sync.noDisk')
   const all = usable(await read($, world))?.depts ?? [], want = name.trim().toLowerCase()
@@ -1262,7 +1268,7 @@ async function outOf($: EngineInterface, sessionId: string, text: string, sent: 
   return { id: sessionId, o: { text: text || sent, sent, base: takenOf(d, sent), at: await $.clock.now(), ...(to ? { to } : {}) } }
 }
 // A send that failed puts its text back in the field (as a paste goes in) and its images back before any attached since.
-function unsend($: EngineInterface, sessionId: string, text: string, files: { path: string; pic: Awaited<ReturnType<typeof thumb>> }[]) {
+function unsend($: EngineInterface, sessionId: string, text: string, files: { path: string; pic: ChatPic | null }[]) {
   if (text) pasted.set(sessionId, { n: ++pasteN, text }) // replaces a paste the field has not taken yet: the failed message wins
   if (files.length) attached.set(sessionId, [...files, ...(attached.get(sessionId) ?? [])])
   $.ui.invalidate('ui.render')
@@ -1358,7 +1364,7 @@ async function pressed($: EngineInterface, client: string, key: unknown, surface
     return redraw()
   }
   if (a.k === 'diskImages') { // the mod's own thumbnails and pasted images; a bubble whose file is gone says so
-    const dir = IMAGES(await home($)), now = await $.clock.now()
+    const dir = IMAGES(await homeDir($)), now = await $.clock.now()
     if (imagesArmed && now - imagesArmed.at < 5000) {
       const kb = imagesArmed.kb
       imagesArmed = null
@@ -1389,7 +1395,7 @@ async function guardOf($: EngineInterface, tool: string, input: unknown): Promis
     if (typeof command === 'string' && guardedCommand(command)) return 'command'
     const path = judged(tool, input)
     if (path === null) return null
-    const ht = await home($), spelled = /^[/~]/.test(path) ? path : `${await $.session.cwd()}/${path}`
+    const ht = await homeDir($), spelled = /^[/~]/.test(path) ? path : `${await $.session.cwd()}/${path}`
     const real = await realOf($, spelled.replace(/^~(?=\/|$)/, ht))
     return guardedPath(tool, spelled, ht) ?? (real ? guardedPath(tool, real, ht) : null)
   } catch {
@@ -1404,7 +1410,7 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
   if (!beat) await ensureBeat($).catch(() => {})
   if (!beat) return false
   const key = [...running].find(([, x]) => x === tool)?.[0] ?? MAIN // shortcut: two agents on the same tool share a guess
-  const me = beat.id, box = controlFile(await home($), me), now = await $.clock.now()
+  const me = beat.id, box = controlFile(await homeDir($), me), now = await $.clock.now()
   // A command (or a tool's arguments) too long to show whole, shown with a part masked, or with characters that draw
   // something else, is answered where you can read it: the session.
   const { cmd, size } = doing(tool, input)
@@ -1431,14 +1437,21 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
   return !!c
 }
 
-export function register(on: On, options: PluginOptions) {
+// shortcut: register's parameters carry no types (the plugin directory reads `export function register(on, options)`
+// plainly), so `on` is any and each hook's parameters are untyped (@ts-expect-error per hook); retype them should the
+// directory accept annotated parameters. tests/register.types.ts checks register against Register (the directory
+// refuses a second use of the name register in this file).
+// @ts-expect-error untyped on purpose, see above
+export function register(on, options) {
   const option = (options as { team_flow?: string } | undefined)?.team_flow
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
     const text = flowRule(await flowNow($, option))
     return { ...r, sections: [...r.sections, ...(text ? [{ id: 'agentville:team-flow', text, scope: 'session' as const }] : []), { id: 'agentville:relay', text: RELAY_RULE, scope: 'session' as const }] }
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.start', async ($, e, next) => {
     // Refused when the person keeps a user /agentville (the plain name in the menu); this hook still answers it.
     await useLang($)
@@ -1460,25 +1473,30 @@ export function register(on: On, options: PluginOptions) {
     return next(e)
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.attach', async ($, e, next) => {
     const r = await next(e)
     await ensurePane($, true).catch(() => {})
 
     return r
   })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.close', async ($, e, next) => {
-    if (e.id === PANE) { // nobody reads the heartbeats for it, and no session holds a request for it ($.fs has no delete)
-      stopTicking()
-      await $.process.run(['/bin/rm', '-f', viewerFile(await home($))]).catch(() => null)
-    }
-    if (e.id === PANE && e.origin.kind === 'person') { // you closed it here: it stays closed here
-      await $.store.delete(await flag($, 'open'))
-      await $.store.set(await flag($, 'closed'), true)
-    }
+    try {
+      if (e.id === PANE) { // nobody reads the heartbeats for it, and no session holds a request for it ($.fs has no delete)
+        stopTicking()
+        await $.process.run(['/bin/rm', '-f', viewerFile(await homeDir($))]).catch(() => null)
+      }
+      if (e.id === PANE && e.origin.kind === 'person') { // you closed it here: it stays closed here
+        await $.store.delete(await flag($, 'open'))
+        await $.store.set(await flag($, 'closed'), true)
+      }
+    } catch { /* a failure here still passes the close on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.end', async ($, e, next) => {
     listener?.cancel()
     listener = null
@@ -1498,21 +1516,28 @@ export function register(on: On, options: PluginOptions) {
   })
 
   // Classic events carry the transcript's path; the title is read from it.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('classic.SessionStart', async ($, e, next) => {
-    transcript = e.transcript_path
-    void retitle($).catch(() => {})
+    try {
+      transcript = e.transcript_path
+      void retitle($).catch(() => {})
+    } catch { /* a failure here still passes the event on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('classic.UserPromptSubmit', async ($, e, next) => {
-    transcript = e.transcript_path
-    void retitle($).catch(() => {})
-    void relink($).catch(() => {})
+    try {
+      transcript = e.transcript_path
+      void retitle($).catch(() => {})
+      void relink($).catch(() => {})
+    } catch { /* a failure here still passes the prompt on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
 
   // What each agent does, from the session's own events. These only observe: they return `next`'s answer.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('turn.start', async ($, e, next) => {
     if (!e.agentId) mainTurn = e.turnId
     await mark($, (b, now) => {
@@ -1522,6 +1547,7 @@ export function register(on: On, options: PluginOptions) {
 
     return next(e)
   })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('turn.complete', async ($, e, next) => {
     const done = () => (e.reason === 'error' ? { state: 'error' as const, activity: t('act.turnFailed') }
       : e.isAborted ? { state: 'inactivo' as const, activity: t('act.stopped') }
@@ -1542,88 +1568,109 @@ export function register(on: On, options: PluginOptions) {
     return next(e)
   })
   // Every row of the main conversation passes here as it is kept: Claude's text as it writes it, and your prompts.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.append', async ($, e, next) => {
-    const c = chatFrom(e.message)
-    // A subagent's words go to its own desk: selecting it shows them.
-    if (e.agentId) {
-      const key = e.agentId
-      if (c?.who === 'claude' && c.text) await mark($, b => { const ag = b.agents[key]; if (ag) ag.said = addSaid(ag.said, c.text) })
-      return next(e)
-    }
-    // Its question and suggested sessions (wrap_up, start_session and their results); a message you typed (queued too,
-    // never a tool result or an envelope) answers the question.
-    if (beat) {
-      const b = beat, now = await $.clock.now()
-      let changed = asksFrom(b, e.message, now)
-      if (c?.who === 'tú' && b.ask) { delete b.ask; changed = true }
-      if (changed) await mark($, (x, at) => unwait(x, at))
-      // A start or dismiss of any session's suggestion (one withdrawn from here by hand) settles it in every pane.
-      const cl = closingsFrom(e.message)
-      for (const [tu, id, kind] of cl.uses) { if (closing.size >= 50) closing.clear(); closing.set(tu, [id, kind]) }
-      for (const [tu, text] of cl.results) { const c = closing.get(tu); if (c) { closing.delete(tu); if (closedOk(c[1], c[0], text)) await offerDone($, c[0]) } }
-    }
-    // A prompt sent while the session is busy waits in its queue: it shows as queued until it is delivered.
-    if (c && e.door === 'queue') c.queued = true
-    if (c?.who === 'tú') c.at = await $.clock.now() // the pane's outbox drops what it sent once a row of yours is newer
-    if (c) {
-      // A file sent by a relative path is read from the session's folder; thumb takes absolute paths only.
-      const refs = imagesOf(e.message), rel = (r: ImgRef) => 'path' in r && !r.path.startsWith('/')
-      const cwd = refs.some(rel) ? await $.session.cwd().catch(() => '') : '' // no cwd: the relative ref stays relative and thumb refuses it
-      const pics = (await Promise.all(refs.map(r => thumb($, rel(r) && cwd ? { path: `${cwd}/${(r as { path: string }).path}` } : r)))).filter(x => x !== null)
-      if (pics.length) c.pics = pics
-      await mark($, b => pushChat(b, c))
-    }
+    try {
+      const c = chatFrom(e.message)
+      // A subagent's words go to its own desk: selecting it shows them.
+      if (e.agentId) {
+        const key = e.agentId
+        if (c?.who === 'claude' && c.text) await mark($, b => { const ag = b.agents[key]; if (ag) ag.said = addSaid(ag.said, c.text) })
+      } else {
+        // Its question and suggested sessions (wrap_up, start_session and their results); a message you typed (queued too,
+        // never a tool result or an envelope) answers the question.
+        if (beat) {
+          const b = beat, now = await $.clock.now()
+          let changed = asksFrom(b, e.message, now)
+          if (c?.who === 'tú' && b.ask) { delete b.ask; changed = true }
+          if (changed) await mark($, (x, at) => unwait(x, at))
+          // A start or dismiss of any session's suggestion (one withdrawn from here by hand) settles it in every pane.
+          const cl = closingsFrom(e.message)
+          for (const [tu, id, kind] of cl.uses) { if (closing.size >= 50) closing.clear(); closing.set(tu, [id, kind]) }
+          for (const [tu, text] of cl.results) { const c = closing.get(tu); if (c) { closing.delete(tu); if (closedOk(c[1], c[0], text)) await offerDone($, c[0]) } }
+        }
+        // A prompt sent while the session is busy waits in its queue: it shows as queued until it is delivered.
+        if (c && e.door === 'queue') c.queued = true
+        if (c?.who === 'tú') c.at = await $.clock.now() // the pane's outbox drops what it sent once a row of yours is newer
+        if (c) {
+          // A file sent by a relative path is read from the session's folder; thumb takes absolute paths only.
+          const refs = imagesOf(e.message), rel = (r: ImgRef) => 'path' in r && !r.path.startsWith('/')
+          const cwd = refs.some(rel) ? await $.session.cwd().catch(() => '') : '' // no cwd: the relative ref stays relative and thumb refuses it
+          const pics = (await Promise.all(refs.map(r => thumb($, rel(r) && cwd ? { path: `${cwd}/${(r as { path: string }).path}` } : r)))).filter(x => x !== null)
+          if (pics.length) c.pics = pics
+          await mark($, b => pushChat(b, c))
+        }
+      }
+    } catch { /* a failure here still passes the row on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
   // A background command's end arrives as a notification prompt; it closes that task on the board.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('prompt.submit', async ($, e, next) => {
-    if (e.text.includes('<task-notification>')) await mark($, b => bgFrom(b, e.text))
+    try {
+      if (e.text.includes('<task-notification>')) await mark($, b => bgFrom(b, e.text))
+    } catch { /* it only observes: a failure here never touches the prompt, which passes on once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e)) // it only observes: a failure here never touches the prompt
+  })
   // With a team flow on (Agentville's or a skill), every subagent is asked for a plan it keeps current, so its desk shows
   // how far it got (one without the task-list tool still gets an action plan drawn from its steps).
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('agent.spawn', async ($, e, next) => {
     // Only this plugin's agents and the session's own ones (no plugin prefix) get the plan ask; other plugins' agents are
     // left as their plugin wrote them. The secretaria and Producto answer in a fixed shape: no plan ask for them.
-    const own = !e.subagentType.includes(':') || e.subagentType.startsWith('agentville:')
-    const ask = own && !STAFF.test(e.subagentType) && (await flowNow($, option)).kind !== 'none'
-    if (kindOf(e.subagentType) === PROD_KIND) await readMetas($).catch(() => {}) // the board shows the goals it judges by
-    const r = await next(!ask || e.prompt.includes(PLAN_ASK) ? e : { ...e, prompt: e.prompt + PLAN_ASK })
-    if (r.agentId) await mark($, (b, now) => setAgent(b, r.agentId!, now, { role: roleOf(e.subagentType), kind: e.subagentType, state: 'leyendo', activity: e.description, cmd: null, goal: e.description }))
+    let sent = e
+    try {
+      const own = !e.subagentType.includes(':') || e.subagentType.startsWith('agentville:')
+      const ask = own && !STAFF.test(e.subagentType) && (await flowNow($, option)).kind !== 'none'
+      if (kindOf(e.subagentType) === PROD_KIND) await readMetas($).catch(() => {}) // the board shows the goals it judges by
+      sent = !ask || e.prompt.includes(PLAN_ASK) ? e : { ...e, prompt: e.prompt + PLAN_ASK }
+    } catch { /* a failure before next passes the spawn on as it came, once */ }
+    const r = await next(sent)
+    try {
+      if (r.agentId) await mark($, (b, now) => setAgent(b, r.agentId!, now, { role: roleOf(e.subagentType), kind: e.subagentType, state: 'leyendo', activity: e.description, cmd: null, goal: e.description }))
+    } catch { /* next's answer stands */ }
 
     return r
-  }).catch(($, e, next) => next(e))
+  })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('tool.call', async ($, e, next) => {
     // The helpers read a copy (a built-in call carries its arguments at the top level); `e` goes on to next untouched.
-    const seen = { ...e }, key = e.agentId ?? MAIN, d = doing(e.tool, seen)
-    let step = 0
-    await mark($, (b, now) => {
-      setAgent(b, key, now, { state: d.state, activity: d.activity, cmd: null })
-      if (isTaskList(e.tool)) {
-        // A subagent's task list is its own; only the main conversation's is the session's plan.
-        const ag = e.agentId ? b.agents[key] : undefined
-        if (ag) { const own = { notes: ag.notes ?? [] } as Beat; notesFrom(own, seen); ag.notes = own.notes } else { notesFrom(b, seen); delete b.openSteps }
-      }
-      else step = addStep(b, b.agents[key]!.role, d.activity)
-      b.tools = { ...b.tools, [e.tool]: (b.tools?.[e.tool] ?? 0) + 1 }
-    })
-    running.set(key, e.tool)
+    let key: string, d: ReturnType<typeof doing>, step = 0
+    try {
+      const seen = { ...e }
+      key = e.agentId ?? MAIN
+      d = doing(e.tool, seen)
+      await mark($, (b, now) => {
+        setAgent(b, key, now, { state: d.state, activity: d.activity, cmd: null })
+        if (isTaskList(e.tool)) {
+          // A subagent's task list is its own; only the main conversation's is the session's plan.
+          const ag = e.agentId ? b.agents[key] : undefined
+          if (ag) { const own = { notes: ag.notes ?? [] } as Beat; notesFrom(own, seen); ag.notes = own.notes } else { notesFrom(b, seen); delete b.openSteps }
+        }
+        else step = addStep(b, b.agents[key]!.role, d.activity)
+        b.tools = { ...b.tools, [e.tool]: (b.tools?.[e.tool] ?? 0) + 1 }
+      })
+      running.set(key, e.tool)
+    } catch { return next(e) } // a failure before next passes the call on, once; a throw from that next goes up as before
     const r = await next(e).finally(() => running.delete(key)) // runs the permission prompt and the tool
-    const bgId = (r.result as { backgroundTaskId?: string } | undefined)?.backgroundTaskId
-    await mark($, b => {
-      if (step) endStep(b, step, !r.deny && !r.isError)
-      if (bgId) b.bg = [...(b.bg ?? []), { id: bgId, text: d.activity, status: 'corriendo' as const }].slice(-8)
-    })
-    await mark($, (b, now) => setAgent(b, key, now, 'deny' in r && r.deny !== undefined ? { state: 'leyendo', activity: t('act.denied'), cmd: null, tool: undefined, req: null }
-      : r.isError ? { state: 'error', activity: t('act.failed', { what: d.activity }), cmd: null, tool: undefined, req: null } : { state: d.state, activity: d.activity, cmd: null, tool: undefined, req: null }))
+    try {
+      const bgId = (r.result as { backgroundTaskId?: string } | undefined)?.backgroundTaskId
+      await mark($, b => {
+        if (step) endStep(b, step, !r.deny && !r.isError)
+        if (bgId) b.bg = [...(b.bg ?? []), { id: bgId, text: d.activity, status: 'corriendo' as const }].slice(-8)
+      })
+      await mark($, (b, now) => setAgent(b, key, now, 'deny' in r && r.deny !== undefined ? { state: 'leyendo', activity: t('act.denied'), cmd: null, tool: undefined, req: null }
+        : r.isError ? { state: 'error', activity: t('act.failed', { what: d.activity }), cmd: null, tool: undefined, req: null } : { state: d.state, activity: d.activity, cmd: null, tool: undefined, req: null }))
+    } catch { /* next's answer stands */ }
 
     return r
-  }).catch(($, e, next) => next(e))
+  })
   // The tool guard (guardOf) and the pane's hold of a permission request (heldDenied). Each answers only a fixed deny,
   // written here; everything else passes on. Their parameter names are used nowhere else in this file, so the plugin
   // directory can tell which event each passes on. The pane never approves: it rejects, or opens the session's chat.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('tool.check', async (guardCap, checkEvent, checkNext) => {
     const why = await guardOf(guardCap, checkEvent.tool, checkEvent.input)
     if (why === 'command') return { decision: 'deny', reason: 'The Agentville store holds the key of its mailboxes; commands may not name it.' }
@@ -1632,11 +1679,13 @@ export function register(on: On, options: PluginOptions) {
     if (why === 'failed') return { decision: 'deny', reason: 'Agentville could not check this path; it stays closed.' }
     return checkNext(checkEvent)
   })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('classic.PermissionRequest', async (holdCap, permEvent, permNext) => {
     if (await heldDenied(holdCap, permEvent.tool_name, permEvent.tool_input).catch(() => false)) return { decision: { behavior: 'deny', message: 'Rejected from Agentville' } }
     return permNext(permEvent)
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('command.run', { command: 'agentville' }, async ($, e) => {
     // English names first, the Spanish ones kept as aliases (AW).
     // `/agentville lang es|en` (or idioma) switches the pane's language and answers in it; it opens no pane.
@@ -1683,6 +1732,7 @@ export function register(on: On, options: PluginOptions) {
   // key pressed: see `pressed`. A key the last drawing did not give does nothing (an agent gone, an office closed).
   // The message field (field.tsx) posts its draft as it changes, a selection to copy, and the text to send on Enter.
   // A pane Button pressed closes an open usage card first, then does its own job (hotkeys go through `pressed`).
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.press', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (clickDiag) { await useLang($); await $.ui.toast(t('diag.press', { el: t('diag.pane'), key: e.element.slice(0, 60), ok: t('diag.matched') })) }
     const close = !!pinnedUse && !e.element.startsWith('hot-') && !inClient(e.element, acts.keys())
@@ -1692,6 +1742,7 @@ export function register(on: On, options: PluginOptions) {
     return done
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.message', async ($, e, next) => {
     const at = await $.clock.now()
     msgTimes = [...msgTimes.filter(x => at - x < METER_MS), at]
@@ -1765,6 +1816,7 @@ export function register(on: On, options: PluginOptions) {
     return done()
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     // A failing drawing shows its error instead of leaving the pane empty.
     try {
@@ -1822,7 +1874,7 @@ export function register(on: On, options: PluginOptions) {
     const tab = await read($, tabAtom)
     // The selected session's commands; one that has not published them (an older copy of the mod) borrows this
     // session's, which share your skills and plugins.
-    const listOf = async (id?: string) => (id ? await readJson<CmdRow[]>($, commandsFile(await home($), id)) : null)
+    const listOf = async (id?: string): Promise<CmdRow[] | null> => (id ? await readJson($, commandsFile(await homeDir($), id)) : null)
     const cmds = (await listOf(dept?.id)) ?? (await listOf(beat?.id)) ?? []
     // "archive" is offered only for this pane's own session (the tool archives "self") and only while the app lists the tool.
     // The notes on your desk (the map's marker and its card): every office's question first, then the suggested sessions,
@@ -1869,7 +1921,8 @@ export function register(on: On, options: PluginOptions) {
       )
     }
 
-    const { Box, Text, Svg, Button, Code, Link, Client } = $.ui.resolve(e)
+    const ui = $.ui.resolve(e)
+    const { Box, Text, Svg, Button, Code, Link } = ui
     if (imagesArmed) { if (imagesArmed.keep) imagesArmed.keep = false; else imagesArmed = null } // an unrelated redraw disarms it
     if (orderArmed) { if (orderArmed.keep) orderArmed.keep = false; else orderArmed = null }
     // The disk screen: what the last measure said; a new one starts in the background when due.
@@ -1905,7 +1958,7 @@ export function register(on: On, options: PluginOptions) {
       const hit = (r: number) => {
         const row = only === undefined ? at + r : at, b = stripBand(row, runs), bp = bandProps(b, BTN_GLOW)
         clientEls += bandEls([b]).clients
-        return <Client key={`${client}~${row}`} module="./bandhits.tsx" props={{ ...bp, runs: bp.runs.map(([g, k, sc]) => (k ? [g, k, sc, r ? `${k}~${r + 1}` : k] : [g, k, sc])), words, ...tinted('btns') }} flexGrow={1} />
+        return <ui.Client key={`${client}~${row}`} module="./bandhits.tsx" props={{ ...bp, runs: bp.runs.map(([g, k, sc]) => (k ? [g, k, sc, r ? `${k}~${r + 1}` : k] : [g, k, sc])), words, ...tinted('btns') }} flexGrow={1} />
       }
       return (
         <Box position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column">
@@ -1949,8 +2002,8 @@ export function register(on: On, options: PluginOptions) {
       const props: BtnsProps = { items, dir, colors: { ink: P.ink, dim: P.dim, accent: ACCENT, glow: BTN_GLOW }, ...tinted('btns') }
       clientEls += btnsElements(props)
       return grow
-        ? <Box key={`wrap-${key}`} width={0} flexGrow={1} overflow="hidden"><Client key={key} module="./btns.tsx" props={props} /></Box>
-        : <Client key={key} module="./btns.tsx" props={props} />
+        ? <Box key={`wrap-${key}`} width={0} flexGrow={1} overflow="hidden"><ui.Client key={key} module="./btns.tsx" props={props} /></Box>
+        : <ui.Client key={key} module="./btns.tsx" props={props} />
     }
     // paneList: the list's hit rows (every item has `cells`) as pane Buttons, drawn as btns.tsx's hitRow draws them in
     // its Client (same Boxes, keys and covers), each press going through `pressed` as the Client's post would.
@@ -2180,7 +2233,7 @@ export function register(on: On, options: PluginOptions) {
         <Box key="hits" position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column">
           {drawn.map(b => (
             <Box key={`band-${b.row}`} height={0} flexGrow={g(b.y1 - b.y0)} flexDirection="column" overflow="hidden">
-              {live(b) || kept.has(b.row) ? <Client key={`hits-${b.row}`} module="./bandhits.tsx" props={{ ...bandProps(b, glow), ...tinted('hits') }} flexGrow={1} /> : null}
+              {live(b) || kept.has(b.row) ? <ui.Client key={`hits-${b.row}`} module="./bandhits.tsx" props={{ ...bandProps(b, glow), ...tinted('hits') }} flexGrow={1} /> : null}
             </Box>
           ))}
         </Box>
@@ -2246,7 +2299,7 @@ export function register(on: On, options: PluginOptions) {
       renders = [...renders, entry].slice(-20)
       if (typeof entry.kb === 'number') drewKb = entry.kb // the last pass is the tree that goes out (redrawBg)
       if (!calib && !(await $.store.get(RENDER_LOG).catch(() => false))) return
-      void $.fs.write(`${await home($)}/.claude/agentville/render-log.json`, JSON.stringify(renders, (k, v) => (v === Infinity ? null : v), 1)).catch(() => {})
+      void $.fs.write(`${await homeDir($)}/.claude/agentville/render-log.json`, JSON.stringify(renders, (k, v) => (v === Infinity ? null : v), 1)).catch(() => {})
     }
     // The flood meter, with /agentville calibrar clics on: one footer line under the drawing, counted on draws that happen
     // anyway (no timer of its own). Off, the drawing goes out untouched. Its limits are guesses until the live check.
@@ -2415,7 +2468,7 @@ export function register(on: On, options: PluginOptions) {
       // pruned or missing is not kept, and its bubble says so.
       for (const p of shown) {
         // The .txt goes unescaped into an href: base64 only, or it shows as gone.
-        const b64 = picCache.get(p.file) ?? await $.fs.read(`${IMAGES(await home($))}/${p.file}.txt`).then(s => (/^[A-Za-z0-9+/=]*$/.test(s) ? s : '')).catch(() => '')
+        const b64 = picCache.get(p.file) ?? await $.fs.read(`${IMAGES(await homeDir($))}/${p.file}.txt`).then((s: string) => (/^[A-Za-z0-9+/=]*$/.test(s) ? s : '')).catch(() => '')
         picCache.delete(p.file)
         if (b64) picCache.set(p.file, b64)
       }
@@ -2458,7 +2511,7 @@ export function register(on: On, options: PluginOptions) {
         return lines
       }
       // How many of each row's lines get a hit Client: by the row's list, the very array picRow is handed.
-      const hitLines = new Map<readonly RowPic[], number>()
+      const hitLines = new Map<RowPics, number>()
       let picLeft = picMax, picDrawn = 0
       for (const [list, most] of [[pending, ATTACHED_THUMB], ...visible.map(m => [m.pics ?? [], THUMB]).reverse()] as [RowPic[], number][]) {
         const n = Math.min(picLeft, picLines(list, most).length)
@@ -2537,7 +2590,7 @@ export function register(on: On, options: PluginOptions) {
             {(fold.cut || !!text.trim()) && (
               <Box flexDirection="row" gap="xs" alignSelf="flex-start">
                 {fold.cut && <Box backgroundColor={BUBBLE_INK} paddingX={1}><Button key={`more-${k}`} plain onPress={() => { noRoom.delete(k); if (open) opened.delete(k); else opened.add(k); $.ui.invalidate('ui.render') }}>{open ? t('chat.less') : t('chat.full')}</Button></Box>}
-                {!!text.trim() && <Box backgroundColor={BUBBLE_INK} paddingX={1}><Button key={`copy-${k}`} plain onPress={(press) => void $.ui.copy({ text, surface: press.surface }).then(r => (r.isCopied ? $.ui.toast(t('toast.copied')) : undefined)).catch(() => {})}>{t('chat.copy')}</Button></Box>}
+                {!!text.trim() && <Box backgroundColor={BUBBLE_INK} paddingX={1}><Button key={`copy-${k}`} plain onPress={(press: UiPressArgument) => void $.ui.copy({ text, surface: press.surface }).then((r: UiCopyResult) => (r.isCopied ? $.ui.toast(t('toast.copied')) : undefined)).catch(() => {})}>{t('chat.copy')}</Button></Box>}
               </Box>
             )}
             {pics.length > 0 && picRow(`pics-${k}`, pics, THUMB, BUBBLE_INK)}
@@ -3148,7 +3201,7 @@ export function register(on: On, options: PluginOptions) {
                     <Box flexDirection="row" gap="xs" alignItems={menuOpen ? 'flex-start' : 'center'}>
                       {face('me', 'me', 36, t('chat.you'))}
                       <Box key={`wrap-field-${dept.id}`} width={0} flexGrow={1} minWidth={0} overflow="hidden">
-                        <Client
+                        <ui.Client
                           key={`field-${dept.id}`}
                           module="./field.tsx"
                           props={{ placeholder: dept.asleep ? t('field.asleep') : relayTo ? t('field.to', { name: relayTo.name, hint: '' }).trimEnd() : t('field.to', { name, hint: permWait(dept.id) ? t('field.afterPerm') : busy(dept.id) ? t('field.busy') : t('field.hint') }), mine: t('field.mine'), more: t('field.more'), bg: '#151514', ink: '#ecebe8', dim: '#8e8b85', line: '#3a3936', focus: '#b9c6d8', sel: '#3d4a5c', clear: sentCount, ...(pasted.has(dept.id) ? { insert: pasted.get(dept.id)! } : {}), cmds, ...tinted('field') }}
@@ -3270,3 +3323,4 @@ export function register(on: On, options: PluginOptions) {
     }
   })
 }
+

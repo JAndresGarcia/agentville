@@ -5,6 +5,19 @@ and versions follow [Semantic Versioning](https://semver.org/). How a release is
 
 ## Unreleased
 
+## 1.1.3 - 2026-10-21
+
+Behind-the-scenes tidy-up for Anthropic's plugin directory checks. Nothing changes in how the panel looks or works, and
+you have nothing to do.
+
+### Internal
+
+- `hooks/register.tsx` follows the rules the directory's review enforces: no array or tuple type inside a call's type
+  arguments or a type predicate (each is a named type), `Client` used as `ui.Client` and never destructured,
+  `register` named once (its check against `Register` moved to `tests/register.types.ts`), no type arguments at a call
+  that passes `$`, and helpers that take `$` named nothing else in the file (`homeDir`, `runOut`, `orderFailed`).
+  `scripts/check-register-rules.sh` fails when one of these comes back.
+
 ## 1.1.2 - 2026-10-21
 
 Behind-the-scenes tidy-up for Anthropic's plugin directory checks. Nothing changes in how the panel looks or works, and

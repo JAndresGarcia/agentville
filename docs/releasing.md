@@ -17,13 +17,16 @@ newest version heading in [CHANGELOG.md](../CHANGELOG.md).
 3. Check and test, with Claude Code 2.1.299 or newer:
 
    ```bash
-   claude plugin validate --strict agentville && claude plugin test agentville && bash scripts/check-plugin-files.sh
+   claude plugin validate --strict agentville && claude plugin test agentville && bash scripts/check-plugin-files.sh && bash scripts/check-register-rules.sh
    ```
 
-   The last command fails when a file in `agentville/` is a symlink, or, unless it is an image or a font, is binary or
+   `check-plugin-files.sh` fails when a file in `agentville/` is a symlink, or, unless it is an image or a font, is binary or
    over 256 KiB: Anthropic's plugin directory holds such a plugin back, and `claude plugin test` cannot check it.
    No file is exempt: `hooks/register.tsx` keeps every function that takes `$`, and its pure code lives in
-   `hooks/pure.ts`.
+   `hooks/pure.ts`. `check-register-rules.sh` fails when `hooks/register.tsx` breaks a rule the directory's review enforces and
+   `claude plugin validate` does not: an array or tuple type in a call's type arguments or a type predicate, a
+   destructured `Client`, `register` named twice, type arguments at a call that passes `$`, or a helper that takes `$`
+   whose name is also used for something else in the file.
 
 4. Commit both files as `Release vX.Y.Z`. Before tagging, the maintainer checks that commit live in the desktop app.
 5. Tag the release in the public repository, [JAndresGarcia/agentville](https://github.com/JAndresGarcia/agentville),
