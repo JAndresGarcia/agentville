@@ -103,13 +103,13 @@ export async function toolsNow($: EngineInterface, now: number) {
   if (!toolNames || now - toolNames.at > 60000) toolNames = { at: now, names: (await $.tool.list().catch(() => [])).map(x => x.name) }
   return toolNames.names
 }
-export async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
+export async function homeDir($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
 export async function readJson<T>($: EngineInterface, path: string): Promise<T | null> {
   try { return JSON.parse(await $.fs.read(path)) as T } catch { return null }
 }
 // A mailbox's orders; a missing or malformed file has none.
 export async function ordersAt($: EngineInterface, path: string): Promise<unknown[]> {
-  const cmds = (await readJson<{ cmds?: unknown }>($, path))?.cmds
+  const cmds = (await readJson($, path))?.cmds
   return Array.isArray(cmds) ? cmds : []
 }
 export async function hiddenOf($: EngineInterface): Promise<Record<string, number>> {
@@ -126,7 +126,7 @@ export async function transcriptOf($: EngineInterface, b: Beat, now: number) {
   let s = transcripts.get(b.id)
   if (s && now - s.at < (s.path && !isMod(b.mod) ? 3000 : 30000)) return s
   if (!s?.path) {
-    const dir = `${await home($)}/.claude/projects`
+    const dir = `${await homeDir($)}/.claude/projects`
     let path: string | null = null
     for (const d of await $.fs.list(dir).catch(() => [])) {
       if (d.kind === 'dir' && (await $.fs.exists(`${dir}/${d.name}/${b.id}.jsonl`).catch(() => false))) { path = `${dir}/${d.name}/${b.id}.jsonl`; break }
@@ -155,7 +155,7 @@ export async function lookArchived($: EngineInterface, beats: Beat[], now: numbe
   // shortcut: ARCHIVED_MAX records a look keep the find's argv short; past that many live sessions the rest keep their
   // last answer. Rotate them if that ever happens.
   const ids = all.slice(0, ARCHIVED_MAX)
-  const app = APP_DIR(await home($)), r = ids.length ? await $.process.run(sessionsFind(app, ids), { timeoutMs: 5000 }).catch(() => null) : null
+  const app = APP_DIR(await homeDir($)), r = ids.length ? await $.process.run(sessionsFind(app, ids), { timeoutMs: 5000 }).catch(() => null) : null
   if (ids.length && !r) return
   const found = r?.stdout.split('\n') ?? [], next = new Set(all.slice(ARCHIVED_MAX).filter(id => archivedIds.has(id)))
   for (let i = 0; i < ids.length; i += 6) {
@@ -175,7 +175,7 @@ export async function readKey($: EngineInterface) {
 export async function order($: EngineInterface, sessionId: string, cmd: Omit<Cmd, 'n' | 'sig'>): Promise<number> {
   let key = await readKey($)
   if (!key) { key = crypto.randomUUID(); await $.store.set(MAILBOX_KEY, key) }
-  const path = controlFile(await home($), sessionId)
+  const path = controlFile(await homeDir($), sessionId)
   await ensureRoot($)
   const signed = { ...cmd, n: (await $.clock.now()) * 1000 + Math.floor(Math.random() * 1000) }
   await $.fs.write(path, JSON.stringify({ cmds: [...(await ordersAt($, path)), { ...signed, sig: await signOf(key, signed, sessionId) }].slice(-30) }))
@@ -213,7 +213,7 @@ export async function record($: EngineInterface, path: string) {
 // Made private before anything is written into it, once per module (a folder made earlier with 755 is fixed too).
 let rootReady: Promise<unknown> | null = null
 export function ensureRoot($: EngineInterface) { return (rootReady ??= (async () => {
-  const root = `${await home($)}/.claude/agentville`
+  const root = `${await homeDir($)}/.claude/agentville`
   await $.process.run(['/bin/mkdir', '-p', '-m', '700', root]).catch(() => null)
   await $.process.run(['/bin/chmod', '700', root]).catch(() => null)
 })()) }
@@ -227,7 +227,7 @@ export async function flowNow($: EngineInterface, option: string | undefined) {
 }
 async function usedBefore($: EngineInterface) {
   for (const k of [INTRO, MAILBOX_KEY, HIDDEN_KEY]) if ((await $.store.get(k).catch(() => undefined)) !== undefined) return true
-  const dir = beatsDir(await home($))
+  const dir = beatsDir(await homeDir($))
   for (const f of await $.fs.list(dir).catch(() => [])) {
     if (!f.name.endsWith('.json')) continue
     const b = await $.fs.read(`${dir}/${f.name}`).then(t => JSON.parse(t) as Partial<Beat>, () => null)
@@ -468,7 +468,7 @@ async function redrawBg($: EngineInterface) {
 // A beat's id goes into paths (its mailbox, its commands): one that is not a plain id, or not its own file's name, is
 // dropped.
 async function readBeats($: EngineInterface) {
-  const dir = beatsDir(await home($))
+  const dir = beatsDir(await homeDir($))
   const files = await $.fs.list(dir).catch(() => [])
   const beats: Beat[] = []
   for (const f of files) {
@@ -531,7 +531,7 @@ async function sync($: EngineInterface, reads = false) {
   if (prev && arrived && !live.includes(arrived)) { await useLang($); const ad = next.depts.find(d => d.id === arrived.dept); await $.ui.toast(t('toast.waits', { role: roleName(arrived.role, ad), office: ad?.name ?? '' })) }
 }
 const permToasted = new Set<string>() // the requests toasted as they arrived (sync)
-async function viewing($: EngineInterface) { await ensureRoot($); await $.fs.write(viewerFile(await home($)), JSON.stringify({ at: await $.clock.now() })).catch(() => {}) }
+async function viewing($: EngineInterface) { await ensureRoot($); await $.fs.write(viewerFile(await homeDir($)), JSON.stringify({ at: await $.clock.now() })).catch(() => {}) }
 // Every second while the pane is open here: say a placed pane is open, and read the heartbeats every 3 s, every
 // second while someone waits for an answer from the pane. With the pane gone it stops.
 let syncedAt = 0
@@ -578,8 +578,8 @@ async function startBeat($: EngineInterface) {
   if (loadedVer) b.mod = loadedVer
   // Where the app keeps the transcript; the classic events below say it too, but a session started from another
   // session may never get them.
-  transcript ||= `${await home($)}/.claude/projects/${cwd.replace(/[^a-zA-Z0-9]/g, '-')}/${b.id}.jsonl`
-  carryOver(b, await readJson<Beat>($, `${beatsDir(await home($))}/${b.id}.json`))
+  transcript ||= `${await homeDir($)}/.claude/projects/${cwd.replace(/[^a-zA-Z0-9]/g, '-')}/${b.id}.jsonl`
+  carryOver(b, await readJson($, `${beatsDir(await homeDir($))}/${b.id}.json`))
   if (hasItem(b, now) && b.agents[MAIN]?.state !== 'trabajando') setAgent(b, MAIN, now, waitPatch(b)) // a reload keeps the question waiting in the despacho
   // The rows written while the module was being swapped (the /reload-plugins row itself) come back from the
   // transcript; the thumbnails already made are kept.
@@ -597,7 +597,7 @@ async function mark($: EngineInterface, fn: (b: Beat, now: number) => void) {
   if (!beat) return
   await useLang($) // the activities written below are in the pane's language
   fn(beat, await $.clock.now())
-  const text = JSON.stringify(beat), path = `${beatsDir(await home($))}/${beat.id}.json`
+  const text = JSON.stringify(beat), path = `${beatsDir(await homeDir($))}/${beat.id}.json`
   saving = saving.then(() => $.fs.write(path, text)).catch(() => {}) // a lost beat is replaced by the next one
 }
 
@@ -614,7 +614,7 @@ async function listen($: EngineInterface) {
   if (!beat) return
   listening = true
   try {
-    const cmds = await trusted(await ordersAt($, controlFile(await home($), beat.id)), await readKey($), await $.clock.now(), beat.id, seen)
+    const cmds = await trusted(await ordersAt($, controlFile(await homeDir($), beat.id)), await readKey($), await $.clock.now(), beat.id, seen)
     for (const c of cmds.sort((x, y) => x.n - y.n)) {
       seen = c.n
       if (c.kind === 'msg' && c.text) void submitOrder($, c.text).catch(() => {})
@@ -686,7 +686,7 @@ async function syncCheck($: EngineInterface) {
   const now = await $.clock.now()
   if (!beat || !loadedVer || now - syncAt < SYNC_EVERY) return
   syncAt = now
-  const r = await syncTick($, { root: $.plugin.root, home: await home($), loaded: loadedVer })
+  const r = await syncTick($, { root: $.plugin.root, home: await homeDir($), loaded: loadedVer })
   if ((r.stuck ?? undefined) !== beat?.syncStuck) await mark($, b => { if (r.stuck) b.syncStuck = r.stuck; else delete b.syncStuck })
   if (!ticker) return
   const v = r.disk?.clean ? r.disk.ver : null // a checkout mid-edit counts as no version: no badges
@@ -722,8 +722,8 @@ async function sendMsg($: EngineInterface, sessionId: string, text: string, fail
 // The image on the clipboard, saved as a png (osascript); null when the clipboard holds none.
 async function clipboardImage($: EngineInterface) {
   if (hasSips === false) return null
-  const path = `${IMAGES(await home($))}/up-${await $.clock.now()}.png`
-  await $.process.run(['/bin/mkdir', '-p', IMAGES(await home($))]).catch(() => null)
+  const path = `${IMAGES(await homeDir($))}/up-${await $.clock.now()}.png`
+  await $.process.run(['/bin/mkdir', '-p', IMAGES(await homeDir($))]).catch(() => null)
   const r = await $.process.run(['/usr/bin/osascript', '-e', 'on run argv', '-e', 'set f to open for access (POSIX file (item 1 of argv)) with write permission',
     '-e', 'set eof f to 0', '-e', 'write (the clipboard as «class PNGf») to f', '-e', 'close access f', '-e', 'end run', path]).catch(() => null)
   if (r?.exitCode === 0) return path
@@ -755,7 +755,7 @@ function rmFiles($: EngineInterface, files: string[]) { return $.process.run(['/
 async function thumb($: EngineInterface, ref: ImgRef) {
   if (hasSips === false) return null
   if ('path' in ref && !(await isImageFile($, ref.path))) return null
-  const dir = IMAGES(await home($)), file = `${beat?.id ?? 'x'}-${await $.clock.now()}-${Math.floor(Math.random() * 1e6)}`
+  const dir = IMAGES(await homeDir($)), file = `${beat?.id ?? 'x'}-${await $.clock.now()}-${Math.floor(Math.random() * 1e6)}`
   // A pasted image is kept whole beside its thumbnail, for a click to open; a named file is opened where it is.
   const ext = 'data' in ref ? ({ 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' } as Record<string, string>)[ref.media] ?? 'png' : ''
   const src = 'data' in ref ? `${dir}/${file}.${ext}` : ref.path, b64 = `${dir}/${file}.b64`, jpg = `${dir}/${file}.jpg`
@@ -784,7 +784,7 @@ async function openZoom($: EngineInterface, p: ChatPic) {
   const strips: string[] = []
   let w = 0, ht = 0
   if (orig) {
-    const dir = IMAGES(await home($)), big = `${dir}/${p.file}-big.big.jpg`, part = `${dir}/${p.file}-big.s.jpg`
+    const dir = IMAGES(await homeDir($)), big = `${dir}/${p.file}-big.big.jpg`, part = `${dir}/${p.file}-big.s.jpg`
     try {
       const wide = px(await out($, [SIPS, '-g', 'pixelWidth', orig]), 'Width') > 900
       if ((await out($, [SIPS, ...(wide ? ['--resampleWidth', '900'] : []), '-s', 'format', 'jpeg', '-s', 'formatOptions', '40', orig, '--out', big])) !== null) {
@@ -825,7 +825,7 @@ async function publishCommands($: EngineInterface) {
   await retitle($) // a title the app sets mid-turn shows without waiting for the turn's end
   const rows: CmdRow[] = (await $.command.list()).map(c => [c.name, c.description.replace(/\s+/g, ' ').slice(0, 200), c.source])
   const text = JSON.stringify(rows)
-  const file = commandsFile(await home($), beat.id)
+  const file = commandsFile(await homeDir($), beat.id)
   if (text !== commandsText || !(await $.fs.exists(file))) { commandsText = text; await $.fs.write(file, text) }
 }
 
@@ -861,7 +861,7 @@ async function relink($: EngineInterface) {
   const fresh = now - relinkFrom < RELINK_FRESH
   if (now - relinkAt < (fresh ? RELINK_FAST : RELINK_EVERY)) return
   relinkAt = now
-  const me = beat.id, dir = `${APP_DIR(await home($))}/claude-code-sessions`
+  const me = beat.id, dir = `${APP_DIR(await homeDir($))}/claude-code-sessions`
   let hit = relinkOwn, own = hit ? await record($, `${dir}/${hit}`) : null
   if (own?.cliSessionId !== me) {
     own = null; hit = relinkOwn = null
@@ -915,7 +915,7 @@ async function openPane($: EngineInterface) {
 // file lately (see `tick`).
 async function paneSeen($: EngineInterface, now: number) {
   if ((await $.ui.panes()).some(p => p.id === PANE && p.isPlaced)) return true
-  const viewer = await readJson<{ at: number }>($, viewerFile(await home($)))
+  const viewer = await readJson($, viewerFile(await homeDir($)))
   return !!viewer && now - viewer.at < VIEWER_FRESH
 }
 // Where a path lands with every symlink followed: the file's own, else its folder's plus its name (a file not there
@@ -934,14 +934,14 @@ function heldImage(images: string) {
 }
 let aliveAt = 0
 async function tidy($: EngineInterface, now: number, mine: string) {
-  const root = `${await home($)}/.claude/agentville`
+  const root = `${await homeDir($)}/.claude/agentville`
   const old = (sub: string, ttl = (_: string) => WEEK) => $.fs.list(`${root}/${sub}`).catch(() => []).then(fs => fs.filter(f => f.kind === 'file' && now - f.mtimeMs > ttl(f.name)))
   const held = heldImage(`${root}/images`)
   const gone = (await old('images', n => (n.endsWith('.txt') ? WEEK : DAY))).map(f => `${root}/images/${f.name}`).filter(f => !held(f))
   for (const f of await old('sessions')) {
     const id = f.name.replace(/\.json$/, '')
     if (id === mine || !/^[\w-]+$/.test(id)) continue
-    gone.push(`${root}/sessions/${id}.json`, commandsFile(await home($), id), controlFile(await home($), id))
+    gone.push(`${root}/sessions/${id}.json`, commandsFile(await homeDir($), id), controlFile(await homeDir($), id))
   }
   if (gone.length) await $.process.run(['/bin/rm', '-f', ...gone]).catch(() => null)
   // The reload marks (sync:<id>) older versions stored: this session's own (it reloads no more), and those of sessions
@@ -982,7 +982,7 @@ async function pickLang($: EngineInterface, l: 'es' | 'en') {
 // `/agentville refresh` (or limpiar): every office nobody is working in leaves the map until its next activity, and the
 // files of sessions ended long ago (not this one) go. Stale marks (a session gone, or back at work) are pruned.
 async function refresh($: EngineInterface) {
-  const beats = await readBeats($), now = await $.clock.now(), ht = await home($), mine = await $.session.id()
+  const beats = await readBeats($), now = await $.clock.now(), ht = await homeDir($), mine = await $.session.id()
   const had = await hiddenOf($), byId = new Map(beats.map(b => [b.id, b]))
   const old = beats.filter(b => b.ended && now - b.at >= SLEEP_MS && b.id !== mine && /^[\w-]+$/.test(b.id))
   const marks = Object.fromEntries(Object.entries(had).filter(([id, at]) => (byId.get(id)?.at ?? Infinity) <= at && !old.some(b => b.id === id)))
@@ -1012,7 +1012,7 @@ async function measureDisk($: EngineInterface, now: number) {
     if ((!due.df && !due.du) || !lockFree((await $.store.get(DISK_LOCK).catch(() => null)) as number | null, now)) return
     await $.store.set(DISK_LOCK, now)
     locked = true
-    const ht = await home($), mod = `${ht}/.claude/agentville`
+    const ht = await homeDir($), mod = `${ht}/.claude/agentville`
     const next: DiskCache = { at: 0, duAt: 0, freeKb: null, modKb: null, wt: null, sizes: [], sessions: {}, ...cache }
     // Saved after each step, so free space never waits on the slow du; a redraw only when what shows changed.
     const shown = (c: DiskCache | null) => JSON.stringify([c?.freeKb ?? null, c?.modKb ?? null, c?.wt?.length ?? null, c?.sizes?.length ? c.sizes : null])
@@ -1053,7 +1053,7 @@ async function reply($: EngineInterface, a: Extract<Act, { k: 'reply' }>) {
     const w = usable(await read($, world)), q = w?.agents.find(x => x.dept === a.dept && x.req === a.req)
     name = starterIn(w, a.dept)?.name ?? a.dept
     const whole = !!q && !isCutCmd(q.cmd) && !isMaskedCmd(q.cmd) && !isHiddenCmd(q.cmd) && !(q.held !== undefined && q.held <= await $.clock.now())
-    const b = whole ? await readJson<Beat>($, `${beatsDir(await home($))}/${a.dept}.json`) : null
+    const b = whole ? await readJson($, `${beatsDir(await homeDir($))}/${a.dept}.json`) : null
     if (!Object.values(b?.agents ?? {}).some(x => x.req === a.req)) { answered.delete(a.req); return $.ui.toast(t('ask.expired', { chat: name })) }
   } catch (err) { answered.delete(a.req); return failed($, err) } // nothing sent: the request shows again
   return order($, a.dept, { kind: a.verdict, req: a.req }).then(() => {
@@ -1237,7 +1237,7 @@ async function redirectReload($: EngineInterface, sessionId: string) {
 // every session counts as another: it fails closed.
 async function commandThere($: EngineInterface, sessionId: string, text: string) {
   if ((beat && sessionId === beat.id) || !text.startsWith('/')) return null
-  const theirs = await readJson<UnknownRows>($, commandsFile(await home($), sessionId)).catch(() => null)
+  const theirs = await readJson($, commandsFile(await homeDir($), sessionId)).catch(() => null)
   const names = [...(Array.isArray(theirs) ? theirs.map(r => (Array.isArray(r) ? r[0] : null)) : []), ...(await $.command.list().catch(() => [])).map(c => c.name)]
   const run = asCommand(text, names.filter((n): n is string => typeof n === 'string'))
   return run ? `/${run.command}`.slice(0, 60) : null
@@ -1246,7 +1246,7 @@ async function commandThere($: EngineInterface, sessionId: string, text: string)
 // saying which are current, asleep, or need /reload-plugins typed in their chat. With one such session, its chat opens.
 async function syncCmd($: EngineInterface, name: string) {
   await sync($).catch(() => {})
-  const disk = await diskOf($, $.plugin.root, await home($), loadedVer ?? undefined).catch(() => null)
+  const disk = await diskOf($, $.plugin.root, await homeDir($), loadedVer ?? undefined).catch(() => null)
   const ver = disk?.clean ? disk.ver : null
   if (!ver) return t('cmd.sync.noDisk')
   const all = usable(await read($, world))?.depts ?? [], want = name.trim().toLowerCase()
@@ -1366,7 +1366,7 @@ async function pressed($: EngineInterface, client: string, key: unknown, surface
     return redraw()
   }
   if (a.k === 'diskImages') { // the mod's own thumbnails and pasted images; a bubble whose file is gone says so
-    const dir = IMAGES(await home($)), now = await $.clock.now()
+    const dir = IMAGES(await homeDir($)), now = await $.clock.now()
     if (imagesArmed && now - imagesArmed.at < 5000) {
       const kb = imagesArmed.kb
       imagesArmed = null
@@ -1397,7 +1397,7 @@ async function guardOf($: EngineInterface, tool: string, input: unknown): Promis
     if (typeof command === 'string' && guardedCommand(command)) return 'command'
     const path = judged(tool, input)
     if (path === null) return null
-    const ht = await home($), spelled = /^[/~]/.test(path) ? path : `${await $.session.cwd()}/${path}`
+    const ht = await homeDir($), spelled = /^[/~]/.test(path) ? path : `${await $.session.cwd()}/${path}`
     const real = await realOf($, spelled.replace(/^~(?=\/|$)/, ht))
     return guardedPath(tool, spelled, ht) ?? (real ? guardedPath(tool, real, ht) : null)
   } catch {
@@ -1412,7 +1412,7 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
   if (!beat) await ensureBeat($).catch(() => {})
   if (!beat) return false
   const key = [...running].find(([, x]) => x === tool)?.[0] ?? MAIN // shortcut: two agents on the same tool share a guess
-  const me = beat.id, box = controlFile(await home($), me), now = await $.clock.now()
+  const me = beat.id, box = controlFile(await homeDir($), me), now = await $.clock.now()
   // A command (or a tool's arguments) too long to show whole, shown with a part masked, or with characters that draw
   // something else, is answered where you can read it: the session.
   const { cmd, size } = doing(tool, input)
@@ -1486,7 +1486,7 @@ export function register(on, options) {
     try {
       if (e.id === PANE) { // nobody reads the heartbeats for it, and no session holds a request for it ($.fs has no delete)
         stopTicking()
-        await $.process.run(['/bin/rm', '-f', viewerFile(await home($))]).catch(() => null)
+        await $.process.run(['/bin/rm', '-f', viewerFile(await homeDir($))]).catch(() => null)
       }
       if (e.id === PANE && e.origin.kind === 'person') { // you closed it here: it stays closed here
         await $.store.delete(await flag($, 'open'))
@@ -1875,7 +1875,7 @@ export function register(on, options) {
     const tab = await read($, tabAtom)
     // The selected session's commands; one that has not published them (an older copy of the mod) borrows this
     // session's, which share your skills and plugins.
-    const listOf = async (id?: string) => (id ? await readJson<CmdRows>($, commandsFile(await home($), id)) : null)
+    const listOf = async (id?: string) => (id ? await readJson($, commandsFile(await homeDir($), id)) : null)
     const cmds = (await listOf(dept?.id)) ?? (await listOf(beat?.id)) ?? []
     // "archive" is offered only for this pane's own session (the tool archives "self") and only while the app lists the tool.
     // The notes on your desk (the map's marker and its card): every office's question first, then the suggested sessions,
@@ -2300,7 +2300,7 @@ export function register(on, options) {
       renders = [...renders, entry].slice(-20)
       if (typeof entry.kb === 'number') drewKb = entry.kb // the last pass is the tree that goes out (redrawBg)
       if (!calib && !(await $.store.get(RENDER_LOG).catch(() => false))) return
-      void $.fs.write(`${await home($)}/.claude/agentville/render-log.json`, JSON.stringify(renders, (k, v) => (v === Infinity ? null : v), 1)).catch(() => {})
+      void $.fs.write(`${await homeDir($)}/.claude/agentville/render-log.json`, JSON.stringify(renders, (k, v) => (v === Infinity ? null : v), 1)).catch(() => {})
     }
     // The flood meter, with /agentville calibrar clics on: one footer line under the drawing, counted on draws that happen
     // anyway (no timer of its own). Off, the drawing goes out untouched. Its limits are guesses until the live check.
@@ -2469,7 +2469,7 @@ export function register(on, options) {
       // pruned or missing is not kept, and its bubble says so.
       for (const p of shown) {
         // The .txt goes unescaped into an href: base64 only, or it shows as gone.
-        const b64 = picCache.get(p.file) ?? await $.fs.read(`${IMAGES(await home($))}/${p.file}.txt`).then((s: string) => (/^[A-Za-z0-9+/=]*$/.test(s) ? s : '')).catch(() => '')
+        const b64 = picCache.get(p.file) ?? await $.fs.read(`${IMAGES(await homeDir($))}/${p.file}.txt`).then((s: string) => (/^[A-Za-z0-9+/=]*$/.test(s) ? s : '')).catch(() => '')
         picCache.delete(p.file)
         if (b64) picCache.set(p.file, b64)
       }
