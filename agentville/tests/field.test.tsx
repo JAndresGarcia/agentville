@@ -17,9 +17,10 @@ function mount(props: typeof PROPS & { insert?: { n: number; text: string } } = 
   const el = (type: string) => (q: Record<string, unknown>) => ({ type, props: q })
   const s = {
     elements: { Box: el('Box'), Text: el('Text') },
-    get state() { return state },
-    setState(n: unknown) { count.sets++; if (lag) pending = n; else state = n; dirty = true },
-    get columns() { return columns },
+    // plain values, written beside `state` and `columns` on every change, as the engine's surface holds them
+    state: state as unknown,
+    setState(n: unknown) { count.sets++; if (lag) pending = n; else s.state = state = n; dirty = true },
+    columns,
     rows: 3,
     every(ms: number, fn: () => void) { const t = { ms, due: now + ms, fn, on: true }; timers.push(t); return () => { t.on = false } },
     onPointer(fn: (e: unknown) => void) { count.pointer++; onPointer = fn; return () => {} },
@@ -27,7 +28,7 @@ function mount(props: typeof PROPS & { insert?: { n: number; text: string } } = 
     post(d: Record<string, unknown>) { posts.push(d) },
   }
   const draw = () => { dirty = false; tree = Field(p as never, s as never) }
-  const settle = () => { if (pending !== undefined) { state = pending; pending = undefined } if (dirty) draw() }
+  const settle = () => { if (pending !== undefined) { s.state = state = pending; pending = undefined } if (dirty) draw() }
   draw()
   const text = (n: unknown = tree): string => (typeof n === 'string' ? n : Array.isArray(n) ? n.map(text).join('') : n && typeof n === 'object' && 'props' in n ? text((n as Node).props.children) : '')
   return {
@@ -45,7 +46,7 @@ function mount(props: typeof PROPS & { insert?: { n: number; text: string } } = 
       }
       now = end
     },
-    resize(c: number) { columns = c; draw() },
+    resize(c: number) { s.columns = columns = c; draw() },
     redraw(next: typeof props = p) { p = next; draw() },
   }
 }

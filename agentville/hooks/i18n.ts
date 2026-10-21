@@ -4,7 +4,8 @@
 // How the language reaches the pure modules (scene, look, beat): a module-level setting. The hooks module reads the
 // store (`LANG_KEY`) and calls `setLang` before it draws or writes a heartbeat; `t` reads it, so nothing passes `$`
 // or a language around. A call may still name a language as the third argument. Exported tables whose texts depend
-// on the language (ROLES, STATES, PALETTES' names) are getters, so they answer in the language set at read time.
+// on the language (ROLES, STATES, PALETTES' names) are plain values refilled on every setLang (`onLang`), not getters,
+// so they answer in the language set at read time.
 // Surface modules (field.tsx) run without this module: the pane hands them their words as props.
 
 export type Lang = 'es' | 'en'
@@ -507,8 +508,12 @@ export const STRINGS = {
 
 export type Key = keyof typeof STRINGS
 let current: Lang = DEFAULT_LANG
+// What follows the language (`onLang`): run again on every setLang, the one place the language changes.
+const refills: (() => void)[] = []
 /** Sets the language every later `t` call uses; anything but 'es' or 'en' sets the default. */
-export const setLang = (v: unknown) => { current = langOf(v) }
+export const setLang = (v: unknown) => { current = langOf(v); for (const fill of refills) fill() }
+/** Runs `fill` now and again on every setLang, so plain values stay in the language set at the time. */
+export const onLang = (fill: () => void) => { fill(); refills.push(fill) }
 export const getLang = () => current
 
 /** The text for `key` in `lang` (the one set by default), `{name}` filled from `vars`; an unknown name stays as is. */
@@ -517,6 +522,9 @@ export function t(key: Key, vars?: Record<string, string | number>, lang: Lang =
   return vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : s
 }
 
-/** A record whose values are worked out on every read, so a table answers in the language set at that moment. */
-export const live = <K extends string, V>(keys: readonly K[], of: (k: K) => V): Record<K, V> =>
-  Object.defineProperties({} as Record<K, V>, Object.fromEntries(keys.map(k => [k, { get: () => of(k), enumerable: true }])))
+/** A record of plain values worked out again on every setLang, so a table answers in the language set at that moment. */
+export const live = <K extends string, V>(keys: readonly K[], of: (k: K) => V): Record<K, V> => {
+  const r = {} as Record<K, V>
+  onLang(() => { for (const k of keys) r[k] = of(k) })
+  return r
+}

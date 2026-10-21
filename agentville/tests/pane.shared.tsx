@@ -85,7 +85,7 @@ export const sipsRun = (argv: readonly string[]): Ran | undefined => (argv[0] ==
 // `wait` holds a read pending (a promise on the mocked clock) to make a pass slow.
 // `waitKey` does the same for a store read. `sips`: /usr/bin/sips is there. `stat` answers $.fs.stat (else a file the
 // pane wrote, or missing); a read as bytes answers 'QUJD'.
-export function serveBeats(on: On, list: Beat[], opts: { run?: (argv: readonly string[]) => Ran | undefined; dir?: (path: string) => Entry[] | undefined; wait?: (path: string) => Promise<void> | undefined; waitKey?: (key: string) => Promise<void> | undefined; id?: () => string; sips?: boolean; stat?: (path: string, resolve: boolean) => Stat | undefined; waitWrite?: (path: string) => Promise<void> | undefined } = {}) {
+export function serveBeats(on: On, list: Beat[], opts: { run?: (argv: readonly string[]) => Ran | undefined; dir?: (path: string) => Entry[] | undefined; wait?: (path: string) => Promise<void> | undefined; waitKey?: (key: string) => Promise<void> | undefined; onSet?: (key: string) => void; id?: () => string; sips?: boolean; stat?: (path: string, resolve: boolean) => Stat | undefined; waitWrite?: (path: string) => Promise<void> | undefined } = {}) {
   const run = opts.run ?? (() => undefined)
   // a session's start and end, for the tests that raise them
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -107,7 +107,7 @@ export function serveBeats(on: On, list: Beat[], opts: { run?: (argv: readonly s
   // render-log: the pane writes its render log, which the tests read (off by default).
   const store: Record<string, unknown> = { 'intro-done': true, 'render-log': true, lang: 'es' } // these tests read the Spanish copy; English is the default
   on('session.id', () => ({ value: opts.id?.() ?? 's-test' }))
-  on('store.set', ($, e) => { store[e.key] = e.value; return { value: undefined } })
+  on('store.set', ($, e) => { opts.onSet?.(e.key); store[e.key] = e.value; return { value: undefined } }) // onSet may throw: the write fails
   on('store.get', async ($, e) => { await opts.waitKey?.(e.key); return { value: store[e.key] } })
   on('store.delete', ($, e) => { delete store[e.key]; return { value: undefined } })
   const toasts: string[] = []
@@ -117,7 +117,7 @@ export function serveBeats(on: On, list: Beat[], opts: { run?: (argv: readonly s
     return { value: opts.dir?.(String(e.path)) ?? list.map(b => ({ name: `${b.id}.json`, kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })) }
   })
   const files: Record<string, string> = {} // what the pane writes, read back as a disk would
-  on('fs.write', async ($, e) => { await opts.waitWrite?.(String(e.path)); files[String(e.path)] = String(e.text); events.push(`write ${e.path}`); return { value: undefined } })
+  on('fs.write', async ($, e) => { const at = String(e.path); await opts.waitWrite?.(at); files[at] = String(e.text); events.push(`write ${e.path}`); return { value: undefined } })
   on('fs.exists', ($, e) => ({ value: String(e.path) in files }))
   const reads: string[] = []
   on('fs.read', async ($, e) => {

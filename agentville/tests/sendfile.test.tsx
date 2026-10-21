@@ -82,7 +82,7 @@ function serve(on: On, sips: boolean) {
   })
   on('fs.list', () => ({ value: [] }))
   const files: Record<string, string> = {}
-  on('fs.write', ($, e) => { files[String(e.path)] = String(e.text); return { value: undefined } })
+  on('fs.write', ($, e) => { const at = String(e.path); files[at] = String(e.text); return { value: undefined } })
   on('fs.exists', ($, e) => ({ value: String(e.path) in files }))
   on('fs.read', ($, e) => ({ value: e.as === 'bytes' ? { base64: 'QUJD' } : files[String(e.path)] ?? '' }))
   // sips is there when asked; the pictures sent are regular image files

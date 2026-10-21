@@ -1,13 +1,13 @@
 // The pane's colours. The mod paints its own surfaces (box backgrounds, borders, its text, bubbles); the app's
 // buttons and text fields keep the app's style whatever the palette.
-import { t } from './i18n'
+import { onLang, t } from './i18n'
 import type { Key } from './i18n'
 
 export type Palette = { name: string; bg: string; raise: string; card: string; sel: string; line: string; ink: string; dim: string; wait: string; bad: string; ok: string }
 /** State colours, the same on every palette (all dark). */
 export const STATE_COLORS: Record<string, string> = { esperando: '#e6973c', trabajando: '#6aa8f2', leyendo: '#b9c6d8', error: '#ef6b5b', terminado: '#7fcf98', inactivo: '#9c9a95' }
-// A palette's name is read in the language set at the time (see i18n.ts); the object stays the same one.
-const named = (key: Key, p: Omit<Palette, 'name'>): Palette => Object.defineProperty(p, 'name', { get: () => t(key), enumerable: true }) as Palette
+// A palette's name is in the language set at the time (set again on every setLang, see i18n.ts); the object stays the same one.
+const named = (key: Key, p: Omit<Palette, 'name'>): Palette => { const pal = p as Palette; onLang(() => { pal.name = t(key) }); return pal }
 export const PALETTES: Record<string, Palette> = {
   lobby: named('palette.lobby', { bg: '#2a211b', raise: '#352a21', card: '#30261e', sel: '#403226', line: '#554333', ink: '#f6eee5', dim: '#c4b09c', wait: '#e6973c', bad: '#ef6b5b', ok: '#7fcf98' }),
   noche: named('palette.noche', { bg: '#1f1e1d', raise: '#262524', card: '#232220', sel: '#2e2d2a', line: '#3a3936', ink: '#ecebe8', dim: '#9c9a95', wait: '#e6973c', bad: '#ef6b5b', ok: '#6cc28f' }),

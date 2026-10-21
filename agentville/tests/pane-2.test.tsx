@@ -818,7 +818,8 @@ for (const [name, tools, answer, path] of [
     const calls: Record<string, unknown>[] = []
     const { files, toasts, store, clock } = await asking($, on, { ask: false, setup: () => {
       on('tool.list', () => ({ value: tools ? [{ name: 'mcp__ccd_session__start_session', description: '', mcp: true }, { name: 'mcp__ccd_session__dismiss_task', description: '', mcp: true }] : [] }))
-      on('tool.call', ($2, e) => { if (e.tool.includes('ccd_session')) { calls.push(e as never); if (answer === 'throw') throw new Error('No tool named mcp__ccd_session__dismiss_task'); return answer as never } return { result: 'ok' } as never })
+      // 'throw': passed on, where the kit's bottom hook throws (naming its event), so the call rejects
+      on('tool.call', ($2, e, next) => { if (e.tool.includes('ccd_session')) { calls.push(e as never); return answer === 'throw' ? next(e) : answer as never } return { result: 'ok' } as never })
     } })
     await $.command.run(OPEN)
     const ui = await mountPane($)
@@ -2016,13 +2017,14 @@ test('F: Descartar on the notes card lands after the card closed and opened agai
 
 test('F: Descartar never fails silently: a throw on the way says so, and the suggestion shows again to press', async ($, on) => {
   const clock = mock.clock(on, { now: 100_000 }), now = clock.now()
-  const { toasts, store } = serveBeats(on, [waitingBeat('s-test', now, { offers: [offerOf(1, now)] })]) // this pane's own session: the app's tool runs here
+  let gone = false // while set, writing offers-done fails and it reads as unset
+  const { toasts, store } = serveBeats(on, [waitingBeat('s-test', now, { offers: [offerOf(1, now)] })], { onSet: key => { if (gone && key === 'offers-done') throw new Error('store gone') } }) // this pane's own session: the app's tool runs here
   on('tool.list', () => ({ value: [{ name: 'mcp__ccd_session__dismiss_task', description: '', mcp: true }] }))
   on('tool.call', () => ({ result: 'ok', text: 'Dismissed.' }) as never)
   await $.command.run(OPEN)
   const ui = await mountPane($)
   await clock.advance(600)
-  Object.defineProperty(store, 'offers-done', { get: () => undefined, set: () => { throw new Error('store gone') }, configurable: true }) // the store write fails
+  gone = true; delete store['offers-done'] // the store write fails
   await onMap(ui, 'note-dismiss-task_idea1')
   await clock.settle()
   expect(toasts.slice(-2)).toEqual(['Descartando «Idea 1»…', 'No se pudo descartar «Idea 1»']) // said, never silent, no raw error

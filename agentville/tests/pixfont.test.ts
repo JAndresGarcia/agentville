@@ -16,6 +16,12 @@ test('each embedded font is valid base64 of a woff2 file', () => {
   }
 })
 
+// FNV-1a (32 bit) of each string as it was on one line before 1.1.2 wrote it in chunks: the chunks join to the same text.
+const fnv = (s: string) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5).toString(16).padStart(8, '0')
+test('the embedded fonts, written in chunks, join to the exact strings they were on one line', () => {
+  expect([PIXELIFY_WOFF2.length, fnv(PIXELIFY_WOFF2), PLEX_WOFF2.length, fnv(PLEX_WOFF2)]).toEqual([16012, 'd32a687a', 53656, 'e0a40714'])
+})
+
 test('fontFaceCss: one rule per family, with the weights asked for', () => {
   const count = (css: string) => css.split('@font-face').length - 1
   const one = fontFaceCss(['pix400'])

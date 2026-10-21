@@ -22,8 +22,8 @@ newest version heading in [CHANGELOG.md](../CHANGELOG.md).
 
    The last command fails when a file in `agentville/` is a symlink, or, unless it is an image or a font, is binary or
    over 256 KiB: Anthropic's plugin directory holds such a plugin back, and `claude plugin test` cannot check it.
-   `agentville/hooks/register.tsx` is exempt from the size rule: the directory's `$` rule needs it whole, and its size
-   only causes a policy hold.
+   No file is exempt: `hooks/register.tsx` keeps every function that takes `$`, and its pure code lives in
+   `hooks/pure.ts`.
 
 4. Commit both files as `Release vX.Y.Z`. Before tagging, the maintainer checks that commit live in the desktop app.
 5. Tag the release in the public repository, [JAndresGarcia/agentville](https://github.com/JAndresGarcia/agentville),

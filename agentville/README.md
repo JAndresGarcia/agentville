@@ -215,6 +215,20 @@ Reject (key R); with no answer, or no panel, the session asks you as usual. The 
 (key A) opens the chat where the session asks, and you approve in Claude's own prompt there. Questions and plan
 approvals are always answered in the session.
 
+## Notes for the directory review
+
+- Git runs as `git -c core.fsmonitor=false status`: the flag turns off a program a repository may configure, so no
+  fsmonitor program runs.
+- `www.w3.org` is the SVG namespace in the pictures it draws, and names like `TOUR_KEYS` are keyboard keys, not credentials.
+- The embedded base64 is the Pixelify Sans and IBM Plex Sans fonts (SIL Open Font License), drawn in the panel.
+- The `agent.spawn` hook adds one line asking for a short plan to the prompts of the session's own subagents and this
+  plugin's (not the Secretary or Product) while the team flow is on; other plugins' agents are left as they are.
+- The `tool.call` hook only records each call and its result for the panel, and passes the call on unchanged.
+- Files it writes go only under `~/.claude/agentville`; its settings live in the plugin store.
+- `tool.check` answers a fixed deny for the Agentville store and folder (see Tool guard) and when it cannot check a
+  path; otherwise it passes the call on.
+- `classic.PermissionRequest` answers a fixed deny when you press Reject in the panel, or passes the request on.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). The embedded fonts, Pixelify Sans and IBM Plex Sans, are under the SIL Open Font License,

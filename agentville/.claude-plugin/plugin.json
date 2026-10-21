@@ -1,6 +1,6 @@
 {
   "name": "agentville",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Agentville: a pixel-art office for your Claude Code agents. Each session is an office; agents walk to your desk when they need your OK.",
   "author": {
     "name": "JAndresGarcia",

@@ -22,7 +22,7 @@ export type BtnsProps = { items: BtnItem[]; dir: 'row' | 'column'; colors: { ink
 
 // Wider than any block (two cells each): the cover's label, clipped to the block (its own Box never shrinks, so the
 // label is never cut to "...").
-const COVER = '\u3164'.repeat(60)
+export const COVER = '\u3164'.repeat(60)
 /** The ↗'s width in text cells, the same on the drawn row and its hit row. */
 export const CHAT_W = 3
 /** The hit row's cover lines that end in the ↗'s Button: the drawn row is centred in its cells, so its name line straddles
@@ -41,6 +41,7 @@ const Btns: ClientModule<BtnsProps> = (p, s) => {
   // the row is that many text rows tall from its own content even where the desktop ignores a Box's `height`.
   // A row with a chat key: every cover line spans the row (the map's band recipe, mod-clicks 3: a clipped Box per Button),
   // the first CHAT_LINES ending in the ↗'s CHAT_W cells.
+  // register.tsx's paneHits draws these same hit rows as pane Buttons (paneList): change both together.
   const hitRow = (it: BtnItem, cells: number) => (it.head ? <Box key={`i-${it.key}`} height={cells} flexShrink={0} /> : (
     <Box key={`i-${it.key}`} height={cells} flexShrink={0} flexDirection="column" alignItems={it.chat ? 'stretch' : 'flex-start'} overflow="hidden">
       {Array.from({ length: cells }, (_, r) => (r ? `${it.key}~${r + 1}` : it.key)).map((k, r) => (it.chat ? (

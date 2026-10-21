@@ -5,6 +5,9 @@ import type { On } from 'claude-code'
 import { FILL_MAX, MAIN, OFFER_ORDER_MS, TASK, fillTextOf, newBeat, offerOrderOk, setAgent, signOf } from '../hooks/beat'
 import type { Beat, Cmd } from '../hooks/beat'
 
+// The runtime's own timer, for waits on real time (the mod's types do not declare it).
+declare const setTimeout: (f: (...v: never[]) => void, ms: number) => unknown
+
 // Batch I: Arrancar or Descartar on another session's suggestion goes as a signed order to that session's mailbox; the
 // session that offered it acts as itself and answers in the store's offer-acks. Batch M: Arrancar sends nothing; it
 // opens that session's chat, where the app's card is, and an older pane's start order acks gone. Batch N: before that chat
@@ -45,7 +48,7 @@ function serve(on: On, list: Beat[], answer: (e: Record<string, unknown>) => unk
   on('ui.toast', ($, e) => { toasts.push(e.text); return { value: undefined } })
   on('fs.list', () => ({ value: list.map(b => ({ name: `${b.id}.json`, kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })) }))
   const files: Record<string, string> = {}
-  on('fs.write', ($, e) => { files[String(e.path)] = String(e.text); return { value: undefined } })
+  on('fs.write', ($, e) => { const at = String(e.path); files[at] = String(e.text); return { value: undefined } })
   on('fs.exists', ($, e) => ({ value: String(e.path) in files }))
   on('fs.read', ($, e) => ({ value: files[String(e.path)] ?? JSON.stringify(list.find(b => String(e.path).endsWith(`/sessions/${b.id}.json`))) ?? '' }))
   on('fs.stat', ($, e) => { const p = String(e.path); if (!(p in files)) throw new Error(`ENOENT: ${p}`); return { value: { kind: 'file', size: files[p]!.length, mtimeMs: 0, isLink: false } } })
@@ -66,8 +69,7 @@ function serve(on: On, list: Beat[], answer: (e: Record<string, unknown>) => unk
 }
 // Signatures are checked on real time, outside `$`: each round moves the mocked clock `ms` and also lets real time pass,
 // until `cond` holds.
-const later = (globalThis as unknown as { setTimeout: (f: () => void, ms: number) => void }).setTimeout
-const real = (ms = 5) => new Promise<void>(r => later(r, ms))
+const real = (ms = 5) => new Promise<void>(r => setTimeout(r, ms))
 const until = async (clock: { advance: (ms: number) => Promise<unknown> }, cond: () => boolean, cap = 200, ms = 50) => {
   for (let i = 0; i < cap && !cond(); i++) { await clock.advance(ms); await real() }
 }

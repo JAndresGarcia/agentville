@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/). How a release is
 
 ## Unreleased
 
+## 1.1.2 - 2026-10-21
+
+Behind-the-scenes tidy-up for Anthropic's plugin directory checks. Nothing changes in how the panel looks or works, and
+you have nothing to do.
+
 ## 1.1.1 - 2026-10-21
 
 For Anthropic's plugin directory checks. Nothing changes in how the panel works, and heartbeat files keep their format.

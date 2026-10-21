@@ -8,8 +8,243 @@ import { copyHash, tourCopy, tourOverlay, wrapLines } from '../hooks/tour'
 import type { TourOverlayOpts } from '../hooks/tour'
 import { TOUR_LAYOUT } from '../hooks/tourlayout'
 
-// <generated> by the judge harness (gen-tourlayout.mjs) from layout.json
-const MOCK: { T: Record<string, unknown>; rects: { step: number; lang: string; c: Record<string, number[]> }[]; lines: { step: number; lang: string; n: number }[]; samples: { lang: string; n: [string, number][] }[] } = {"T":{"es":{"skip":"Saltar","next":"Siguiente","back":"Atrás","start":"Empezar","step":"Paso {n} de {t}","guide":"Gem","tour":"Recorrido","s":[{"title":"Idioma / Language","say":"¡Hola! Soy Gem, la secretaria. ¿En qué idioma te muestro la oficina?","body":"Elige el idioma del panel. Puedes cambiarlo luego."},{"title":"Cada sesión es una oficina","say":"Cada sesión de Claude Code que abres tiene su oficina aquí. Esta es \"Tienda online\"."},{"title":"El Jefe","say":"Este es el Jefe: el agente principal de esa sesión. Al terminar el recorrido, haz clic en cualquiera para ver su chat y su plan."},{"title":"El equipo","say":"Cuando el Jefe necesita ayuda llama a su equipo: Implementador, Revisor y QA. Aparecen en sus escritorios."},{"title":"La pizarra","say":"La pizarra muestra el plan de la oficina. Lo tachado ya está hecho."},{"title":"La pantalla de uso","say":"Esta pantalla dice cuánto contexto lleva y cuánto cuesta. Al terminar el recorrido, haz clic en ella para abrir la tarjeta; un clic en otro sitio la cierra."},{"title":"La zona pública","say":"Quien termina o espera viene a descansar aquí: café, charla, PlayStation."},{"title":"Tu despacho","say":"Si alguien necesita tu OK, pasa primero por mi escritorio y luego camina a tu despacho; arriba sale este aviso. Pulsa Ver: R rechaza y A abre el chat para aprobar."},{"title":"¿Cómo trabajan tus equipos?","say":"Antes de cambiar archivos, ¿qué proceso sigue el Jefe?","body":"Sin elegir, no hay flujo de equipo; puedes cambiarlo cuando quieras."},{"title":"Dónde se abre","say":"Último detalle: ¿te abro en todas tus sesiones?"},{"title":"¡Listo!","say":"Ya conoces la oficina. Vuelve a este recorrido cuando quieras con el botón Recorrido."}],"flow":[["Flujo de equipo de Agentville","Spec, implementación y revisiones según el riesgo del cambio.","Recomendado"],["Una de mis skills","El Jefe pasa cada cambio por la skill que elijas."],["Sin flujo de equipo","El Jefe trabaja como Claude Code normal."]],"langs":[["Español","Todo el panel en español.","ES"],["English","The whole panel in English.","EN"]],"always":"Abrir siempre","alwaysOn":"Se abre en todas tus sesiones.","alwaysOff":"Solo se abre donde escribes /agentville.","color":"Color del panel","pals":["Lobby cálido","Noche","Hotel"],"privacy":"Todo queda en tu computador, en una carpeta solo tuya. Lo que no se toca en 7 días se borra solo.","head":"Recorrido","waits":"Te espera 1","text":"Lía (App de recetas): npm run test -- recipes","ver":"Ver"},"en":{"skip":"Skip","next":"Next","back":"Back","start":"Start","step":"Step {n} of {t}","guide":"Gem","tour":"Tour","s":[{"title":"Idioma / Language","say":"Hi! I am Gem, the secretary. Which language should I show you the office in?","body":"Pick the panel language. You can change it later."},{"title":"Each session is an office","say":"Every Claude Code session you open gets its office here. This one is \"Tienda online\"."},{"title":"The Lead","say":"This is the Lead: the main agent of that session. After the tour, click anyone to see their chat and plan."},{"title":"The team","say":"When the Lead needs help it calls its team: Builder, Reviewer and QA. They show up at their desks."},{"title":"The board","say":"The board shows the office plan. Crossed out means done."},{"title":"The usage screen","say":"This screen shows how much context is used and what it costs. After the tour, click it to open the card; a click anywhere else closes it."},{"title":"The common area","say":"Whoever is done or waiting comes here to rest: coffee, chat, PlayStation."},{"title":"Your desk","say":"When someone needs your OK they stop at my desk first, then walk to your desk and this banner shows up. Press Open: R rejects, A opens the chat to approve."},{"title":"How do your teams work?","say":"Before changing files, which process should the Lead follow?","body":"Until you pick, no team flow is on; you can change it any time."},{"title":"Where it opens","say":"Last thing: should I open in all your sessions?"},{"title":"All set!","say":"You know the office now. Replay this tour any time with the Tour button."}],"flow":[["Agentville team flow","Spec, build and reviews sized to each change's risk.","Recommended"],["One of my skills","The Lead runs every change through the skill you pick."],["No team flow","The Lead works like plain Claude Code."]],"langs":[["Español","Todo el panel en español.","ES"],["English","The whole panel in English.","EN"]],"always":"Always open","alwaysOn":"Opens in all your sessions.","alwaysOff":"Opens only where you type /agentville.","color":"Panel colour","pals":["Warm lobby","Night","Hotel"],"privacy":"Everything stays on your computer, in a folder only you can read. Anything untouched for 7 days is deleted on its own.","head":"Tour","waits":"1 waiting","text":"Lía (Recipes app): npm run test -- recipes","ver":"Open"}},"rects":[{"step":1,"lang":"es","c":{"lang-es":[180,283.2,240,62.55],"lang-en":[428,283.2,240,62.55],"tour-skip":[180,375.74,39.44,25],"tour-next":[576.03,372.74,91.97,31]}},{"step":2,"lang":"es","c":{"tour-back":[307.19,206.48,64.91,25],"tour-next":[378.09,206.48,94.5,25]}},{"step":3,"lang":"es","c":{"tour-back":[211.19,208.39,64.91,25],"tour-next":[282.09,208.39,94.5,25]}},{"step":4,"lang":"es","c":{"tour-back":[387.19,296.39,64.91,25],"tour-next":[458.09,296.39,94.5,25]}},{"step":5,"lang":"es","c":{"tour-back":[303.52,222.03,64.91,25],"tour-next":[374.42,222.03,94.5,25]}},{"step":6,"lang":"es","c":{"tour-back":[243.52,211.81,64.91,25],"tour-next":[314.42,211.81,94.5,25]}},{"step":7,"lang":"es","c":{"tour-back":[214.75,279.89,64.91,25],"tour-next":[285.66,279.89,94.5,25]}},{"step":8,"lang":"es","c":{"tour-back":[110.8,371.3,64.91,25],"tour-next":[181.7,371.3,94.5,25]}},{"step":9,"lang":"es","c":{"flow-agentville":[180,212.65,488,62.55],"flow-skill":[180,283.2,488,62.55],"flow-none":[180,353.74,488,62.55],"tour-skip":[180,446.29,39.44,25],"tour-back":[509.91,443.29,58.13,31],"tour-next":[576.03,443.29,91.97,31]}},{"step":10,"lang":"es","c":{"tour-everywhere":[180,220.52,38,22],"tour-pal-lobby":[180,288.58,126.02,34],"tour-pal-noche":[314.02,288.58,65.17,34],"tour-pal-hotel":[387.19,288.58,59,34],"tour-skip":[180,402.86,39.44,25],"tour-back":[509.91,399.86,58.13,31],"tour-next":[576.03,399.86,91.97,31]}},{"step":11,"lang":"es","c":{"tour-skip":[180,328.63,39.44,25],"tour-back":[513.41,325.63,58.13,31],"tour-done":[579.53,325.63,88.47,31]}},{"step":1,"lang":"en","c":{"lang-es":[180,283.2,240,62.55],"lang-en":[428,283.2,240,62.55],"tour-skip":[180,375.74,30.08,25],"tour-next":[604.42,372.74,63.58,31]}},{"step":2,"lang":"en","c":{"tour-back":[307.19,206.48,55.06,25],"tour-next":[368.25,206.48,66.02,25]}},{"step":3,"lang":"en","c":{"tour-back":[211.19,208.39,55.06,25],"tour-next":[272.25,208.39,66.02,25]}},{"step":4,"lang":"en","c":{"tour-back":[387.19,296.39,55.06,25],"tour-next":[448.25,296.39,66.02,25]}},{"step":5,"lang":"en","c":{"tour-back":[303.52,222.03,55.06,25],"tour-next":[364.58,222.03,66.02,25]}},{"step":6,"lang":"en","c":{"tour-back":[243.52,211.81,55.06,25],"tour-next":[304.58,211.81,66.02,25]}},{"step":7,"lang":"en","c":{"tour-back":[214.75,279.89,55.06,25],"tour-next":[275.81,279.89,66.02,25]}},{"step":8,"lang":"en","c":{"tour-back":[110.8,371.3,55.06,25],"tour-next":[171.86,371.3,66.02,25]}},{"step":9,"lang":"en","c":{"flow-agentville":[180,212.65,488,62.55],"flow-skill":[180,283.2,488,62.55],"flow-none":[180,353.74,488,62.55],"tour-skip":[180,446.29,30.08,25],"tour-back":[540.56,443.29,55.86,31],"tour-next":[604.42,443.29,63.58,31]}},{"step":10,"lang":"en","c":{"tour-everywhere":[180,220.52,38,22],"tour-pal-lobby":[180,288.58,122.42,34],"tour-pal-noche":[310.42,288.58,59.02,34],"tour-pal-hotel":[377.44,288.58,59,34],"tour-skip":[180,402.86,30.08,25],"tour-back":[540.56,399.86,55.86,31],"tour-next":[604.42,399.86,63.58,31]}},{"step":11,"lang":"en","c":{"tour-skip":[180,328.63,30.08,25],"tour-back":[538.86,325.63,55.86,31],"tour-done":[602.72,325.63,65.28,31]}}],"lines":[{"step":2,"lang":"es","n":2},{"step":3,"lang":"es","n":3},{"step":4,"lang":"es","n":3},{"step":5,"lang":"es","n":2},{"step":6,"lang":"es","n":4},{"step":7,"lang":"es","n":2},{"step":8,"lang":"es","n":4},{"step":2,"lang":"en","n":2},{"step":3,"lang":"en","n":3},{"step":4,"lang":"en","n":3},{"step":5,"lang":"en","n":2},{"step":6,"lang":"en","n":4},{"step":7,"lang":"en","n":2},{"step":8,"lang":"en","n":4}],"samples":[{"lang":"es","n":[["A",2],["Blog personal",2],["App de recetas",2],["Portafolio 2026",2],["Facturación electrónica",3],["Mi proyecto con un nombre bastante largo",3],["Ñandú & Compañía <beta>",3],["supercalifragilisticoespialidoso-sin-espacios-en-ningun-lado",4],["Un nombre de oficina muy largo para probar el ajuste de lineas en la burbuja, ok.",4],["Tienda online de ropa y accesorios para mascotas",3]]},{"lang":"en","n":[["A",2],["Blog personal",2],["App de recetas",2],["Portafolio 2026",2],["Facturación electrónica",3],["Mi proyecto con un nombre bastante largo",3],["Ñandú & Compañía <beta>",3],["supercalifragilisticoespialidoso-sin-espacios-en-ningun-lado",4],["Un nombre de oficina muy largo para probar el ajuste de lineas en la burbuja, ok.",4],["Tienda online de ropa y accesorios para mascotas",3]]}]}
+// <generated> by the judge harness (gen-tourlayout.mjs) from layout.json. Since 1.1.2 the data is written across short lines, the values unchanged.
+const MOCK: { T: Record<string, unknown>; rects: { step: number; lang: string; c: Record<string, number[]> }[]; lines: { step: number; lang: string; n: number }[]; samples: { lang: string; n: [string, number][] }[] } = {
+  "T": {
+    "es": {
+      "skip": "Saltar", "next": "Siguiente", "back": "Atrás", "start": "Empezar", "step": "Paso {n} de {t}",
+      "guide": "Gem", "tour": "Recorrido",
+      "s": [
+        {
+          "title": "Idioma / Language",
+          "say": "¡Hola! Soy Gem, la secretaria. ¿En qué idioma te muestro la oficina?",
+          "body": "Elige el idioma del panel. Puedes cambiarlo luego."
+        },
+        {
+          "title": "Cada sesión es una oficina",
+          "say": "Cada sesión de Claude Code que abres tiene su oficina aquí. Esta es \"Tienda online\"."
+        },
+        {
+          "title": "El Jefe",
+          "say": "Este es el Jefe: el agente principal de esa sesión. Al terminar el recorrido, ha" +
+            "z clic en cualquiera para ver su chat y su plan."
+        },
+        {
+          "title": "El equipo",
+          "say": "Cuando el Jefe necesita ayuda llama a su equipo: Implementador, Revisor y QA. Ap" +
+            "arecen en sus escritorios."
+        },
+        {"title":"La pizarra","say":"La pizarra muestra el plan de la oficina. Lo tachado ya está hecho."},
+        {
+          "title": "La pantalla de uso",
+          "say": "Esta pantalla dice cuánto contexto lleva y cuánto cuesta. Al terminar el recorri" +
+            "do, haz clic en ella para abrir la tarjeta; un clic en otro sitio la cierra."
+        },
+        {
+          "title": "La zona pública",
+          "say": "Quien termina o espera viene a descansar aquí: café, charla, PlayStation."
+        },
+        {
+          "title": "Tu despacho",
+          "say": "Si alguien necesita tu OK, pasa primero por mi escritorio y luego camina a tu de" +
+            "spacho; arriba sale este aviso. Pulsa Ver: R rechaza y A abre el chat para aprob" +
+            "ar."
+        },
+        {
+          "title": "¿Cómo trabajan tus equipos?",
+          "say": "Antes de cambiar archivos, ¿qué proceso sigue el Jefe?",
+          "body": "Sin elegir, no hay flujo de equipo; puedes cambiarlo cuando quieras."
+        },
+        {"title":"Dónde se abre","say":"Último detalle: ¿te abro en todas tus sesiones?"},
+        {
+          "title": "¡Listo!",
+          "say": "Ya conoces la oficina. Vuelve a este recorrido cuando quieras con el botón Recorrido."
+        }
+      ],
+      "flow": [
+        [
+          "Flujo de equipo de Agentville", "Spec, implementación y revisiones según el riesgo del cambio.",
+          "Recomendado"
+        ],
+        ["Una de mis skills","El Jefe pasa cada cambio por la skill que elijas."],
+        ["Sin flujo de equipo","El Jefe trabaja como Claude Code normal."]
+      ],
+      "langs": [["Español","Todo el panel en español.","ES"],["English","The whole panel in English.","EN"]],
+      "always": "Abrir siempre", "alwaysOn": "Se abre en todas tus sesiones.",
+      "alwaysOff": "Solo se abre donde escribes /agentville.", "color": "Color del panel",
+      "pals": ["Lobby cálido","Noche","Hotel"],
+      "privacy": "Todo queda en tu computador, en una carpeta solo tuya. Lo que no se toca en 7 días se borra solo.",
+      "head": "Recorrido", "waits": "Te espera 1", "text": "Lía (App de recetas): npm run test -- recipes",
+      "ver": "Ver"
+    },
+    "en": {
+      "skip": "Skip", "next": "Next", "back": "Back", "start": "Start", "step": "Step {n} of {t}",
+      "guide": "Gem", "tour": "Tour",
+      "s": [
+        {
+          "title": "Idioma / Language",
+          "say": "Hi! I am Gem, the secretary. Which language should I show you the office in?",
+          "body": "Pick the panel language. You can change it later."
+        },
+        {
+          "title": "Each session is an office",
+          "say": "Every Claude Code session you open gets its office here. This one is \"Tienda online\"."
+        },
+        {
+          "title": "The Lead",
+          "say": "This is the Lead: the main agent of that session. After the tour, click anyone t" +
+            "o see their chat and plan."
+        },
+        {
+          "title": "The team",
+          "say": "When the Lead needs help it calls its team: Builder, Reviewer and QA. They show up at their desks."
+        },
+        {"title":"The board","say":"The board shows the office plan. Crossed out means done."},
+        {
+          "title": "The usage screen",
+          "say": "This screen shows how much context is used and what it costs. After the tour, cl" +
+            "ick it to open the card; a click anywhere else closes it."
+        },
+        {
+          "title": "The common area",
+          "say": "Whoever is done or waiting comes here to rest: coffee, chat, PlayStation."
+        },
+        {
+          "title": "Your desk",
+          "say": "When someone needs your OK they stop at my desk first, then walk to your desk an" +
+            "d this banner shows up. Press Open: R rejects, A opens the chat to approve."
+        },
+        {
+          "title": "How do your teams work?",
+          "say": "Before changing files, which process should the Lead follow?",
+          "body": "Until you pick, no team flow is on; you can change it any time."
+        },
+        {"title":"Where it opens","say":"Last thing: should I open in all your sessions?"},
+        {"title":"All set!","say":"You know the office now. Replay this tour any time with the Tour button."}
+      ],
+      "flow": [
+        ["Agentville team flow","Spec, build and reviews sized to each change's risk.","Recommended"],
+        ["One of my skills","The Lead runs every change through the skill you pick."],
+        ["No team flow","The Lead works like plain Claude Code."]
+      ],
+      "langs": [["Español","Todo el panel en español.","ES"],["English","The whole panel in English.","EN"]],
+      "always": "Always open", "alwaysOn": "Opens in all your sessions.",
+      "alwaysOff": "Opens only where you type /agentville.", "color": "Panel colour",
+      "pals": ["Warm lobby","Night","Hotel"],
+      "privacy": "Everything stays on your computer, in a folder only you can read. Anything untou" +
+        "ched for 7 days is deleted on its own.",
+      "head": "Tour", "waits": "1 waiting", "text": "Lía (Recipes app): npm run test -- recipes",
+      "ver": "Open"
+    }
+  },
+  "rects": [
+    {
+      "step": 1, "lang": "es",
+      "c": {
+        "lang-es": [180,283.2,240,62.55], "lang-en": [428,283.2,240,62.55], "tour-skip": [180,375.74,39.44,25],
+        "tour-next": [576.03,372.74,91.97,31]
+      }
+    },
+    {"step":2,"lang":"es","c":{"tour-back":[307.19,206.48,64.91,25],"tour-next":[378.09,206.48,94.5,25]}},
+    {"step":3,"lang":"es","c":{"tour-back":[211.19,208.39,64.91,25],"tour-next":[282.09,208.39,94.5,25]}},
+    {"step":4,"lang":"es","c":{"tour-back":[387.19,296.39,64.91,25],"tour-next":[458.09,296.39,94.5,25]}},
+    {"step":5,"lang":"es","c":{"tour-back":[303.52,222.03,64.91,25],"tour-next":[374.42,222.03,94.5,25]}},
+    {"step":6,"lang":"es","c":{"tour-back":[243.52,211.81,64.91,25],"tour-next":[314.42,211.81,94.5,25]}},
+    {"step":7,"lang":"es","c":{"tour-back":[214.75,279.89,64.91,25],"tour-next":[285.66,279.89,94.5,25]}},
+    {"step":8,"lang":"es","c":{"tour-back":[110.8,371.3,64.91,25],"tour-next":[181.7,371.3,94.5,25]}},
+    {
+      "step": 9, "lang": "es",
+      "c": {
+        "flow-agentville": [180,212.65,488,62.55], "flow-skill": [180,283.2,488,62.55],
+        "flow-none": [180,353.74,488,62.55], "tour-skip": [180,446.29,39.44,25],
+        "tour-back": [509.91,443.29,58.13,31], "tour-next": [576.03,443.29,91.97,31]
+      }
+    },
+    {
+      "step": 10, "lang": "es",
+      "c": {
+        "tour-everywhere": [180,220.52,38,22], "tour-pal-lobby": [180,288.58,126.02,34],
+        "tour-pal-noche": [314.02,288.58,65.17,34], "tour-pal-hotel": [387.19,288.58,59,34],
+        "tour-skip": [180,402.86,39.44,25], "tour-back": [509.91,399.86,58.13,31],
+        "tour-next": [576.03,399.86,91.97,31]
+      }
+    },
+    {
+      "step": 11, "lang": "es",
+      "c": {
+        "tour-skip": [180,328.63,39.44,25], "tour-back": [513.41,325.63,58.13,31],
+        "tour-done": [579.53,325.63,88.47,31]
+      }
+    },
+    {
+      "step": 1, "lang": "en",
+      "c": {
+        "lang-es": [180,283.2,240,62.55], "lang-en": [428,283.2,240,62.55], "tour-skip": [180,375.74,30.08,25],
+        "tour-next": [604.42,372.74,63.58,31]
+      }
+    },
+    {"step":2,"lang":"en","c":{"tour-back":[307.19,206.48,55.06,25],"tour-next":[368.25,206.48,66.02,25]}},
+    {"step":3,"lang":"en","c":{"tour-back":[211.19,208.39,55.06,25],"tour-next":[272.25,208.39,66.02,25]}},
+    {"step":4,"lang":"en","c":{"tour-back":[387.19,296.39,55.06,25],"tour-next":[448.25,296.39,66.02,25]}},
+    {"step":5,"lang":"en","c":{"tour-back":[303.52,222.03,55.06,25],"tour-next":[364.58,222.03,66.02,25]}},
+    {"step":6,"lang":"en","c":{"tour-back":[243.52,211.81,55.06,25],"tour-next":[304.58,211.81,66.02,25]}},
+    {"step":7,"lang":"en","c":{"tour-back":[214.75,279.89,55.06,25],"tour-next":[275.81,279.89,66.02,25]}},
+    {"step":8,"lang":"en","c":{"tour-back":[110.8,371.3,55.06,25],"tour-next":[171.86,371.3,66.02,25]}},
+    {
+      "step": 9, "lang": "en",
+      "c": {
+        "flow-agentville": [180,212.65,488,62.55], "flow-skill": [180,283.2,488,62.55],
+        "flow-none": [180,353.74,488,62.55], "tour-skip": [180,446.29,30.08,25],
+        "tour-back": [540.56,443.29,55.86,31], "tour-next": [604.42,443.29,63.58,31]
+      }
+    },
+    {
+      "step": 10, "lang": "en",
+      "c": {
+        "tour-everywhere": [180,220.52,38,22], "tour-pal-lobby": [180,288.58,122.42,34],
+        "tour-pal-noche": [310.42,288.58,59.02,34], "tour-pal-hotel": [377.44,288.58,59,34],
+        "tour-skip": [180,402.86,30.08,25], "tour-back": [540.56,399.86,55.86,31],
+        "tour-next": [604.42,399.86,63.58,31]
+      }
+    },
+    {
+      "step": 11, "lang": "en",
+      "c": {
+        "tour-skip": [180,328.63,30.08,25], "tour-back": [538.86,325.63,55.86,31],
+        "tour-done": [602.72,325.63,65.28,31]
+      }
+    }
+  ],
+  "lines": [
+    {"step":2,"lang":"es","n":2}, {"step":3,"lang":"es","n":3}, {"step":4,"lang":"es","n":3},
+    {"step":5,"lang":"es","n":2}, {"step":6,"lang":"es","n":4}, {"step":7,"lang":"es","n":2},
+    {"step":8,"lang":"es","n":4}, {"step":2,"lang":"en","n":2}, {"step":3,"lang":"en","n":3},
+    {"step":4,"lang":"en","n":3}, {"step":5,"lang":"en","n":2}, {"step":6,"lang":"en","n":4},
+    {"step":7,"lang":"en","n":2}, {"step":8,"lang":"en","n":4}
+  ],
+  "samples": [
+    {
+      "lang": "es",
+      "n": [
+        ["A",2], ["Blog personal",2], ["App de recetas",2], ["Portafolio 2026",2],
+        ["Facturación electrónica",3], ["Mi proyecto con un nombre bastante largo",3],
+        ["Ñandú & Compañía <beta>",3], ["supercalifragilisticoespialidoso-sin-espacios-en-ningun-lado",4],
+        ["Un nombre de oficina muy largo para probar el ajuste de lineas en la burbuja, ok.",4],
+        ["Tienda online de ropa y accesorios para mascotas",3]
+      ]
+    },
+    {
+      "lang": "en",
+      "n": [
+        ["A",2], ["Blog personal",2], ["App de recetas",2], ["Portafolio 2026",2],
+        ["Facturación electrónica",3], ["Mi proyecto con un nombre bastante largo",3],
+        ["Ñandú & Compañía <beta>",3], ["supercalifragilisticoespialidoso-sin-espacios-en-ningun-lado",4],
+        ["Un nombre de oficina muy largo para probar el ajuste de lineas en la burbuja, ok.",4],
+        ["Tienda online de ropa y accesorios para mascotas",3]
+      ]
+    }
+  ]
+}
 // </generated>
 // The English copy above reads Lead where the mock said Jefe (English is the primary language); same length, same layout.
 // The guide above is named Gem in both languages, a shorter name than the mock's; the mock's line counts still hold.

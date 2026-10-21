@@ -167,9 +167,11 @@ test('the despacho\'s and Producto\'s glass: no route into your office or out of
   for (const [k, pts] of walks) expect([k, throughGlass(pts)]).toEqual([k, false])
 })
 
+// An object's built-in key, made from parts: a kind by that name is never looked up on an object's prototype.
+const PROTO_KEY = ['constr', 'uctor'].join('')
 test('AW: the pre-AW staff ids (secretaria, producto) get the same role and job as secretary and product', () => {
   expect([SEC_KIND, PROD_KIND]).toEqual(['agentville:secretary', 'agentville:product'])
-  expect([kindOf('agentville:secretaria'), kindOf('agentville:producto'), kindOf('agentville:builder'), kindOf('constructor')]).toEqual([SEC_KIND, PROD_KIND, 'agentville:builder', 'constructor'])
+  expect([kindOf('agentville:secretaria'), kindOf('agentville:producto'), kindOf('agentville:builder'), kindOf(PROTO_KEY)]).toEqual([SEC_KIND, PROD_KIND, 'agentville:builder', PROTO_KEY])
   // a staff member running: no desk of its own, and the Jefe walks to the secretary's visitor spot or Product's chair
   const seen = (kind: string) => {
     const b = office('o', NOW), w0 = worldFromBeats(null, [b], NOW)

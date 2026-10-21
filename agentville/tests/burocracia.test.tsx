@@ -31,7 +31,7 @@ function serve(on: On, disk: Record<string, string>, gate?: Promise<void>, kinds
   on('store.delete', ($, e) => { delete store[e.key]; return { value: undefined } })
   const files: Record<string, string> = {}
   on('fs.list', () => ({ value: [] }))
-  on('fs.write', ($, e) => { files[String(e.path)] = String(e.text); return { value: undefined } })
+  on('fs.write', ($, e) => { const at = String(e.path); files[at] = String(e.text); return { value: undefined } })
   on('fs.exists', ($, e) => ({ value: String(e.path) in files }))
   on('fs.read', ($, e) => ({ value: files[String(e.path)] ?? '' }))
   on('fs.stat', ($, e) => {

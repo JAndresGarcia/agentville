@@ -35,7 +35,7 @@ function serve(on: On, list: Beat[], records: Record<string, string> = {}) {
   on('store.delete', ($, e) => { delete store[e.key]; return { value: undefined } })
   const files: Record<string, string> = {}
   on('fs.list', () => ({ value: list.map(b => ({ name: `${b.id}.json`, kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })) }))
-  on('fs.write', ($, e) => { files[String(e.path)] = String(e.text); return { value: undefined } })
+  on('fs.write', ($, e) => { const at = String(e.path); files[at] = String(e.text); return { value: undefined } })
   on('fs.exists', ($, e) => ({ value: String(e.path) in files }))
   on('fs.read', ($, e) => ({ value: files[String(e.path)] ?? JSON.stringify(list.find(b => String(e.path).endsWith(`/sessions/${b.id}.json`))) ?? '' }))
   const greps: (readonly string[])[] = [], finds: (readonly string[])[] = [], heads: string[] = [], opens: (readonly string[])[] = []
