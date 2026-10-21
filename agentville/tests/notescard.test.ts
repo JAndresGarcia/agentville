@@ -39,7 +39,7 @@ test('D: "Ir al chat" is the row\'s last pill, outlined, at its right end; it wr
   const chat = c.pills.find(p => p.act === 'chat')!, wc = textW('Ir al chat') + 20
   expect(c.body).toContain(`<span class="btn">No</span><span class="btn chat" style="width:${wc - 20}px">Ir al chat</span></span>`) // its width set: exactly its zone
   expect(c.body).toContain('.overlay .acts .chat{margin-left:auto;justify-content:center;color:var(--dim)}')
-  expect([chat.i, chat.w, chat.x, chat.y, chat.h]).toEqual([0, wc, x0 + 300 - wc, c.pills[0]!.y, BTN])
+  expect([chat.i, chat.w, chat.x, chat.y, chat.ht]).toEqual([0, wc, x0 + 300 - wc, c.pills[0]!.y, BTN])
   let label = 'i' // a first reply that leaves the chat pill no room beside it
   while (textW(`▸ ${label}`) + 20 + 8 + wc <= 300) label += 'i'
   const full = card([ask([reply(label)], 'Ir al chat')])
@@ -77,7 +77,7 @@ test('I: a suggestion carrying "Ir al chat" (its session did not answer) draws t
   const offer = (chat?: string): NoteItem => ({ office: null, title: 'Limpiar', brief: 'b', ...(chat ? { chat } : {}) })
   const c = card([offer('↗ Ir al chat')]), wc = textW('↗ Ir al chat') + 20, chat = c.pills.find(p => p.act === 'chat')!
   expect(c.pills.map(p => p.act)).toEqual(['start', 'dismiss', 'chat'])
-  expect([chat.i, chat.w, chat.x, chat.y, chat.h]).toEqual([0, wc, x0 + 300 - wc, c.pills[0]!.y, BTN]) // the same row as its pills
+  expect([chat.i, chat.w, chat.x, chat.y, chat.ht]).toEqual([0, wc, x0 + 300 - wc, c.pills[0]!.y, BTN]) // the same row as its pills
   expect(c.body).toContain(`<span class="btn">Descartar</span><span class="btn chat" style="width:${wc - 20}px">↗ Ir al chat</span></span>`)
   expect(c.CH).toBe(card([offer()]).CH) // no taller
   const plain = card([offer()])
@@ -88,7 +88,7 @@ test('I: a suggestion\'s chat pill that does not fit beside its pills takes a ro
   let chat = '↗ Ir al chat'
   while (textW('▸ Arrancar') + 20 + 8 + textW('Descartar') + 20 + 8 + textW(chat) + 20 <= 300) chat += 'o'
   const c = card([{ office: null, title: 'Limpiar', brief: 'b', chat }]), wc = textW(chat) + 20, pill = c.pills.find(p => p.act === 'chat')!
-  expect([wc <= 300, pill.x, pill.y - c.pills[0]!.y, pill.w, pill.h]).toEqual([true, x0 + 300 - wc, BTN + 8, wc, BTN])
+  expect([wc <= 300, pill.x, pill.y - c.pills[0]!.y, pill.w, pill.ht]).toEqual([true, x0 + 300 - wc, BTN + 8, wc, BTN])
   expect(c.CH - card([{ office: null, title: 'Limpiar', brief: 'b' }]).CH).toBe(BTN + 8)
   expect(c.body).toContain(`<span class="acts wrap"><span class="btn primary">▸ Arrancar</span><span class="btn">Descartar</span><span class="btn chat" style="width:${wc - 20}px">${chat}</span></span>`)
 })

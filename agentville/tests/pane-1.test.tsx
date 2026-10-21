@@ -3,6 +3,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, Mounted } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import { MAIN, ORDER_TTL, cmdTitle, addSaid, redact, asCommand, asPrompt, guardedCommand, guardedPath, hmac, HOLD_MS, trusted, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, doing, newBeat, notesFrom, pushChat, roleOf, setAgent, titleFrom } from '../hooks/beat'
+import { chatPic, picHt } from '../hooks/beat'
 import type { Beat, Cmd } from '../hooks/beat'
 import { blocksOf, linkHost, runsOf } from '../hooks/rich'
 import { PALETTE_KEY, tint } from '../hooks/look'
@@ -149,7 +150,7 @@ test('band count: at 60, 110 and 200 columns each band with a Client is at most 
   const all = (n: unknown): N[] => (n && typeof n === 'object' ? [n as N, ...((n as N).children ?? []).flatMap(all)] : [])
   for (const columns of [60, 110, 200]) {
     const ui = await $.ui.mount({ plugin: 'agentville', surface: 'desktop', component: 'Pane', requestId: 'agentville', props: { ...PANE, bodyColumns: columns } })
-    const v = viewOf(1), height = (mapDrawPx(columns) * v.h) / v.w
+    const v = viewOf(1), height = (mapDrawPx(columns) * v.ht) / v.w
     const bands = (all(await ui.drawn()).find(n => n.props?.key === 'hits')!.children ?? []) as N[]
     const live = bands.filter(b => (b.children ?? []).length)
     expect(live.length).toBeGreaterThan(0)
@@ -278,7 +279,7 @@ test('a card\'s × zone grows from the drawn ×, about 4 cells by 2 rows, wherev
     expect([Math.abs(c.x1 - c.x0 - 4 * cellX) < 1e-9, Math.abs(c.y1 - c.y0 - 2 * rowY) < 1e-9]).toEqual([true, true])
     for (const k of [c.x0, c.x1, c.y0, c.y1]) { expect(k).toBeGreaterThanOrEqual(0); expect(k).toBeLessThanOrEqual(1) }
     if (Math.abs(r.x1 - (1 - 4 / v.w)) < 1e-9) right++
-    if (Math.abs(r.y0 - 4 / v.h) < 1e-9) top++
+    if (Math.abs(r.y0 - 4 / v.ht) < 1e-9) top++
   }
   expect(right && top).toBeTruthy() // the clamped cases were covered
   expect(CLOSE_W).toBeGreaterThanOrEqual(closeGlyphAt(290).w + 15) // the hq card's count ends left of the ×
@@ -1294,7 +1295,7 @@ test('a huge argument is masked and shown only up to twice the cap; its size is 
 
 test('a heartbeat picture whose file is not a plain name is dropped before it reaches a path', async ($, on) => {
   const now = mock.clock(on, { now: 100000 }).now(), list = beats(now)
-  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [{ file: '../../x', w: 10, h: 10 }, { file: 'ok-1', w: 10, h: 10 }] }]
+  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [chatPic('../../x', 10, 10), chatPic('ok-1', 10, 10)] }]
   const { files, reads } = serveBeats(on, list)
   files[`${HOME}/images/ok-1.txt`] = 'AAAA'
   await $.command.run(OPEN)
@@ -1306,9 +1307,9 @@ test('a heartbeat picture whose file is not a plain name is dropped before it re
 
 test('a heartbeat picture with a hostile size or orig, or a thumbnail that is not base64, never reaches the Svg markup', async ($, on) => {
   const now = mock.clock(on, { now: 100000 }).now(), list = beats(now)
-  const bad = [{ w: '10" onload="x' }, { w: -5 }, { w: 0 }, { w: 5000 }, { w: null }, { w: NaN }, { w: Infinity }, { h: '10' }, { orig: 42 }]
-  const good = [{ file: 'ok-1', w: 10, h: 10 }, { file: 'ok-2', w: 4096, h: 1, orig: '/tmp/a.png' }]
-  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [...bad.map((x, i) => ({ file: `bad-${i}`, w: 10, h: 10, ...x })), { file: 'bad-b64', w: 10, h: 10 }, ...good] as never }]
+  const bad = [{ w: '10" onload="x' }, { w: -5 }, { w: 0 }, { w: 5000 }, { w: null }, { w: NaN }, { w: Infinity }, JSON.parse('{"h":"10"}'), { orig: 42 }]
+  const good = [chatPic('ok-1', 10, 10), chatPic('ok-2', 4096, 1, '/tmp/a.png')]
+  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [...bad.map((x, i) => ({ ...chatPic(`bad-${i}`, 10, 10), ...x })), chatPic('bad-b64', 10, 10), ...good] as never }]
   const { files, reads } = serveBeats(on, list)
   // JSON's 1e999 parses to Infinity: written raw, as a hostile session would
   files[`${HOME}/sessions/s1.json`] = JSON.stringify(list[0]).replace('{"file":"ok-1"', '{"file":"inf","w":1e999,"h":10},{"file":"ok-1"')
@@ -1372,7 +1373,7 @@ test('a session writes its commands file again when it is gone', async ($, on) =
 for (const sips of [false, true]) {
   test(`${sips ? 'with sips the zoom offers Vista Previa' : 'without sips there are no thumbnails, no pasted images, no Imagen button and no Vista Previa'}`, async ($, on) => {
     const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now())
-    list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [{ file: 'p1', w: 10, h: 10, orig: '/tmp/p1.png' }, { file: 'gone', w: 10, h: 10 }] }]
+    list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [chatPic('p1', 10, 10, '/tmp/p1.png'), chatPic('gone', 10, 10)] }]
     const { files, ran, toasts } = serveBeats(on, list, { sips, stat: imageAt('/tmp/p1.png') })
     files[`${HOME}/images/p1.txt`] = 'AAAA'
     await startSession($)
@@ -1560,7 +1561,7 @@ test('Copiar and Ver más are plain Buttons, each alone in a Box of the dark bub
 
 test('a bubble lays its pictures in lines of thumbnails at most 140 px wide and 126 px tall; one band Client per text row of a line opens each zoom', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now())
-  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [{ file: 'big', w: 300, h: 200 }, { file: 'gone', w: 10, h: 10 }, { file: 'small', w: 10, h: 10 }, { file: 'tall', w: 100, h: 400 }] }]
+  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [chatPic('big', 300, 200), chatPic('gone', 10, 10), chatPic('small', 10, 10), chatPic('tall', 100, 400)] }]
   const { files } = serveBeats(on, list, { sips: true })
   for (const f of ['big', 'small', 'tall']) files[`${HOME}/images/${f}.txt`] = 'AAAA'
   await startSession($)
@@ -1585,6 +1586,25 @@ test('a bubble lays its pictures in lines of thumbnails at most 140 px wide and 
   expect((await ui.findAll({ type: 'Button' })).some(b => b.key?.startsWith('pic-open-'))).toBe(false) // within budget: no pane Button
   await ui.post({ press: 'pic-open-big' }, { in: hits[0]!.key! })
   expect(await ui.find({ type: 'Text', text: /^Versión pequeña/ })).toBeDefined() // the zoom opened on the thumbnail
+  await ui.unmount()
+})
+
+test('a picture in a heartbeat an older version wrote ({ file, w, h }) still shows, and this version writes the same keys', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now())
+  list[0]!.chat = [{ who: 'tú', text: 'mira' }]
+  const { files } = serveBeats(on, list, { sips: true })
+  // Written raw, as the file of a session on 1.1.0 or before holds it
+  files[`${HOME}/sessions/s1.json`] = JSON.stringify(list[0]).replace('"text":"mira"', '"text":"mira","pics":[{"file":"old","w":100,"h":400,"orig":"/tmp/old.png"}]')
+  files[`${HOME}/images/old.txt`] = 'AAAA'
+  await startSession($)
+  await $.command.run(OPEN)
+  const ui = await mountPane($)
+  await ui.press({ key: 'pick-s1' })
+  const pics = (await ui.findAll({ type: 'Svg' })).filter(n => n.props.alt === 'Imagen del mensaje')
+  // 100 x 400: shrunk to 126 px tall, 32 px wide; drawn from its own size
+  expect(pics.map(n => [n.props.width, /viewBox="0 0 100 400"/.test(String(n.props.source))])).toEqual([[32, true]])
+  expect(JSON.stringify(chatPic('new', 100, 400, '/tmp/new.png'))).toBe('{"file":"new","w":100,"h":400,"orig":"/tmp/new.png"}')
+  expect([picHt(JSON.parse('{"file":"old","w":100,"h":400}')), JSON.stringify(chatPic('x', 1, 2))]).toEqual([400, '{"file":"x","w":1,"h":2}'])
   await ui.unmount()
 })
 
@@ -1628,7 +1648,7 @@ test('Q-B: 4 image messages of 5 pictures and 4 attached: at most PIC_HITS pictu
   const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now()), up = `${HOME}/images/up-${clock.now()}.png`
   const ok = { exitCode: 0, stdout: '', stderr: '' }
   const wide = (argv: readonly string[]) => (argv[0] === '/usr/bin/sips' && argv.includes('-g') ? { ...ok, stdout: '  pixelWidth: 300\n  pixelHeight: 200\n' } : sipsRun(argv))
-  const pics = (m: number) => [0, 1, 2, 3, 4, 4].map(i => ({ file: `m${m}p${i}`, w: 300, h: 200 })) // the last one twice: drawn once
+  const pics = (m: number) => [0, 1, 2, 3, 4, 4].map(i => (chatPic(`m${m}p${i}`, 300, 200))) // the last one twice: drawn once
   list[0]!.chat = [0, 1, 2, 3].map(m => ({ who: 'tú', text: `mira ${m}`, pics: pics(m) }))
   const { files } = serveBeats(on, list, { sips: true, stat: imageAt(up), run: argv => (argv[0] === '/usr/bin/osascript' ? ok : wide(argv)) })
   for (const m of [0, 1, 2, 3]) for (const p of pics(m)) files[`${HOME}/images/${p.file}.txt`] = 'AAAA'
@@ -1656,8 +1676,8 @@ test('Q-B: 4 image messages of 5 pictures and 4 attached: at most PIC_HITS pictu
 
 test('Q-B: lines of different heights in one message get distinct Client keys; a picture on the second line opens itself', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now())
-  const pics = [{ file: 'tall', w: 100, h: 400 }, ...[0, 1, 2, 3].map(i => ({ file: `wide${i}`, w: 300, h: 200 })), { file: 'dot', w: 10, h: 10 }]
-  list[0]!.chat = [{ who: 'tú', text: 'mira', pics }, { who: 'claude', text: 'y esta', pics: [{ file: 'wide0', w: 300, h: 200 }] }] // wide0 in two rows
+  const pics = [chatPic('tall', 100, 400), ...[0, 1, 2, 3].map(i => (chatPic(`wide${i}`, 300, 200))), chatPic('dot', 10, 10)]
+  list[0]!.chat = [{ who: 'tú', text: 'mira', pics }, { who: 'claude', text: 'y esta', pics: [chatPic('wide0', 300, 200)] }] // wide0 in two rows
   const { files } = serveBeats(on, list, { sips: true })
   for (const [i, p] of pics.entries()) files[`${HOME}/images/${p.file}.txt`] = `${'ABCDEF'[i]}`.repeat(4)
   await startSession($)
@@ -1680,7 +1700,7 @@ test('Q-B: a crowded floor with image messages drops the picture Clients before 
   // The map stops growing at MAP_MAX_PX (BC): the old list's rows (a Client each, idle sessions too) and two lines of
   // pictures a message fill the Clients.
   const now = mock.clock(on, { now: 1_000_000 }).now(), list = [...crowd(4, now), ...Array.from({ length: 6 }, (_, i) => { const b = newBeat(`i${i}`, `Idle ${i}`, now - 3600000 - i); setAgent(b, MAIN, b.at, { state: 'inactivo', activity: 'x' }); return b })]
-  list[0]!.chat = [0, 1, 2, 3].map(m => ({ who: 'tú', text: `mira ${m}`, pics: [0, 1, 2, 3, 4, 5, 6, 7].map(i => ({ file: `m${m}p${i}`, w: 300, h: 200 })) }))
+  list[0]!.chat = [0, 1, 2, 3].map(m => ({ who: 'tú', text: `mira ${m}`, pics: [0, 1, 2, 3, 4, 5, 6, 7].map(i => (chatPic(`m${m}p${i}`, 300, 200))) }))
   const { files, store } = serveBeats(on, list, { sips: true }); oldList(store)
   for (let m = 0; m < 4; m++) for (let i = 0; i < 8; i++) files[`${HOME}/images/m${m}p${i}.txt`] = 'AAAA'
   await $.command.run({ ...OPEN, presentation: { isFullscreen: false, columns: 210 } })
@@ -1696,7 +1716,7 @@ test('Q-B: a crowded floor with image messages drops the picture Clients before 
 
 test('the zoom opens a named original only when it is a regular image file; Vista Previa opens it in Preview', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now())
-  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [{ file: 'p1', w: 10, h: 10, orig: '/tmp/p1.png' }] }, { who: 'claude', text: 'y estas', pics: [{ file: 'p2', w: 10, h: 10, orig: '/dev/zero' }] }, { who: 'tú', text: 'otra', pics: [{ file: 'p3', w: 10, h: 10, orig: '/home/test/.ssh/id_ed25519' }] }]
+  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [chatPic('p1', 10, 10, '/tmp/p1.png')] }, { who: 'claude', text: 'y estas', pics: [chatPic('p2', 10, 10, '/dev/zero')] }, { who: 'tú', text: 'otra', pics: [chatPic('p3', 10, 10, '/home/test/.ssh/id_ed25519')] }]
   const stat = (p: string): Stat | undefined => (p === '/tmp/p1.png' || p === '/home/test/.ssh/id_ed25519' ? fileStat() : p === '/dev/zero' ? { ...fileStat(0), kind: 'other' } : undefined)
   const { files, ran } = serveBeats(on, list, { sips: true, stat, run: sipsRun })
   for (const f of ['p1', 'p2', 'p3']) files[`${HOME}/images/${f}.txt`] = 'AAAA'
@@ -1723,10 +1743,10 @@ test('the zoom opens a named original only when it is a regular image file; Vist
 test('Y-D: a thumbnail zoom whose thumbnail left the memory closes; coming back shows the conversation, not the zoom', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const s1 = newBeat('s1', 'tienda', clock.now())
-  s1.chat = [{ who: 'tú', text: 'mira', pics: [{ file: 'p2', w: 10, h: 10, orig: '/dev/zero' }] }] // not an image file: the thumbnail, drawn larger
+  s1.chat = [{ who: 'tú', text: 'mira', pics: [chatPic('p2', 10, 10, '/dev/zero')] }] // not an image file: the thumbnail, drawn larger
   const list = [s1, ...[0, 1, 2, 3].map(i => {
     const b = newBeat(`t${i}`, `o${i}`, clock.now())
-    b.chat = [0, 1, 2, 3].map(r => ({ who: 'tú' as const, text: `m${r}`, pics: [0, 1, 2].map(k => ({ file: `t${i}-${r}-${k}`, w: 4, h: 4 })) }))
+    b.chat = [0, 1, 2, 3].map(r => ({ who: 'tú' as const, text: `m${r}`, pics: [0, 1, 2].map(k => (chatPic(`t${i}-${r}-${k}`, 4, 4))) }))
     return b
   })]
   const stat = (p: string): Stat | undefined => (p === '/dev/zero' ? { ...fileStat(0), kind: 'other' } : undefined)
@@ -1749,7 +1769,7 @@ test('thumbnails kept in memory stop at 40, the ones drawn longest ago going fir
   const clock = mock.clock(on, { now: 1_000_000 })
   const list = [0, 1, 2, 3].map(i => {
     const b = newBeat(`t${i}`, `o${i}`, clock.now())
-    b.chat = [0, 1, 2, 3].map(r => ({ who: 'tú' as const, text: `m${r}`, pics: [0, 1, 2].map(k => ({ file: `t${i}-${r}-${k}`, w: 4, h: 4 })) }))
+    b.chat = [0, 1, 2, 3].map(r => ({ who: 'tú' as const, text: `m${r}`, pics: [0, 1, 2].map(k => (chatPic(`t${i}-${r}-${k}`, 4, 4))) }))
     return b
   })
   const { files, reads } = serveBeats(on, list)
@@ -2326,10 +2346,10 @@ test('btns: each press posts its key; primary and selected say so in words; no S
 })
 
 test('btns: a hit row is its h cells of invisible covers, all posting its key; a header row is empty; LIST_MAX rows stay far under 100,000 characters', () => {
-  const items = [{ key: 'head-working', label: '', head: true, h: 1 }, ...Array.from({ length: LIST_MAX + 1 }, (_, i) => ({ key: `pick-${'0123456789abcdef'.repeat(2)}-${i}`, label: '', h: 3 })), { key: 'idle-more', label: '', h: 1 }, { key: 'list-more', label: '', h: 1 }]
+  const items = [{ key: 'head-working', label: '', head: true, cells: 1 }, ...Array.from({ length: LIST_MAX + 1 }, (_, i) => ({ key: `pick-${'0123456789abcdef'.repeat(2)}-${i}`, label: '', cells: 3 })), { key: 'idle-more', label: '', cells: 1 }, { key: 'list-more', label: '', cells: 1 }]
   const { tree, posted, all } = drawBtns({ items, dir: 'column', colors: COLORS })
   const kids = tree.props.children as unknown as Node[]
-  expect([tree.props.gap, kids.map(k => [k.props.key, k.props.height])]).toEqual([0, items.map(it => [`i-${it.key}`, it.h])])
+  expect([tree.props.gap, kids.map(k => [k.props.key, k.props.height])]).toEqual([0, items.map(it => [`i-${it.key}`, it.cells])])
   const buttons = all.filter(n => n.type === 'Button')
   expect(buttons.length).toBe(3 * (LIST_MAX + 1) + 2)
   for (const b of buttons) expect([b.props.plain, /^\u3164+$/.test(((b.props.children ?? []) as string[]).join(''))]).toEqual([true, true])
@@ -2341,7 +2361,7 @@ test('btns: a hit row is its h cells of invisible covers, all posting its key; a
 })
 
 test('AG btns: a hit row with a chat key ends its first CHAT_LINES cover lines in a CHAT_W-cell Button posting it; the rest post the row', () => {
-  const chat = `tochat-${'0123456789abcdef'.repeat(2)}`, items = [{ key: 'head-working', label: '', head: true, h: 1 }, { key: 'pick-a', label: '', h: ROW_H, chat }, { key: 'pick-b', label: '', h: ROW_H }]
+  const chat = `tochat-${'0123456789abcdef'.repeat(2)}`, items = [{ key: 'head-working', label: '', head: true, cells: 1 }, { key: 'pick-a', label: '', cells: ROW_H, chat }, { key: 'pick-b', label: '', cells: ROW_H }]
   const { tree, posted, all } = drawBtns({ items, dir: 'column', colors: COLORS })
   const row = (tree.props.children as unknown as Node[])[1]!, lines = row.props.children as unknown as Node[]
   expect([row.props.height, lines.length]).toEqual([ROW_H, ROW_H])
@@ -2356,7 +2376,7 @@ test('AG btns: a hit row with a chat key ends its first CHAT_LINES cover lines i
   for (const b of all.filter(n => n.type === 'Button')) (b.props.onPress as () => void)()
   expect(posted).toEqual([{ press: 'pick-a' }, { press: chat }, { press: 'pick-a' }, { press: chat }, { press: 'pick-a' }, ...[0, 1, 2].map(() => ({ press: 'pick-b' }))])
   expect(all.length).toBe(btnsElements({ items, dir: 'column', colors: COLORS }))
-  const big = Array.from({ length: LIST_MAX + 1 }, (_, i) => ({ key: `pick-${'0123456789abcdef'.repeat(2)}-${i}`, label: '', h: ROW_H, chat: `tochat-${'0123456789abcdef'.repeat(2)}-${i}` }))
+  const big = Array.from({ length: LIST_MAX + 1 }, (_, i) => ({ key: `pick-${'0123456789abcdef'.repeat(2)}-${i}`, label: '', cells: ROW_H, chat: `tochat-${'0123456789abcdef'.repeat(2)}-${i}` }))
   const many = drawBtns({ items: big, dir: 'column', colors: COLORS })
   expect([many.all.length, JSON.stringify(many.tree).length + many.all.filter(n => n.type === 'Button').length * 40 < 100000]).toEqual([btnsElements({ items: big, dir: 'column', colors: COLORS }), true])
 })
@@ -2563,7 +2583,7 @@ test('chat paging: Mensajes anteriores stays above the messages and Ver lo más 
 test('AC8: every Svg has a non-empty alt: the pane, a long plan, a zoom in strips, every tour step and the calibration (a full floor: below)', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 }), list = beats(clock.now())
   notesFrom(list[0]!, { items: Array.from({ length: 8 }, (_, i) => ({ content: `paso ${i}`, status: i < 3 ? 'completed' : 'pending' })) })
-  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [{ file: 'p1', w: 10, h: 10, orig: '/tmp/p1.png' }] }]
+  list[0]!.chat = [{ who: 'tú', text: 'mira', pics: [chatPic('p1', 10, 10, '/tmp/p1.png')] }]
   const { files, store } = serveBeats(on, list, { sips: true, stat: imageAt('/tmp/p1.png'), run: sipsRun }) // two strips
   files[`${HOME}/images/p1.txt`] = 'AAAA'
   await startSession($)

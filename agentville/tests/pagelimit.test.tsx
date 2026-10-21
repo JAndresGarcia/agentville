@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, Mounted } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { MAIN, newBeat, setAgent } from '../hooks/beat'
+import { MAIN, chatPic, newBeat, setAgent } from '../hooks/beat'
 import type { Beat } from '../hooks/beat'
 import { CLIENT_MAX, LIST_MAX, MAP_MAX_PX, PAGE_CHARS, PAGE_DEPTH, PAGE_NODES, pageFits, pageOf } from '../hooks/register'
 import { SPRITE_ROWS, agentsLayer, floorView, furnitureLayer, houseLayer, mapStrip, poly, rowsToPaths, selectionLayer, svgUse, worldFromBeats } from '../hooks/scene'
@@ -101,7 +101,7 @@ test('every tree passes the page rule: 16 offices, 3 children arriving unlinked 
   await passes(ui, files, 'children linked')
   // images in the selected session's chat: each thumbnail a jpeg drawn in its own Svg
   const jpeg = 'A'.repeat(24000)
-  list[0]!.chat = [0, 1, 2, 3].map(m => ({ who: 'tú' as const, text: `look ${m}`, pics: [0, 1, 2].map(i => ({ file: `m${m}p${i}`, w: 300, h: 200 })) }))
+  list[0]!.chat = [0, 1, 2, 3].map(m => ({ who: 'tú' as const, text: `look ${m}`, pics: [0, 1, 2].map(i => (chatPic(`m${m}p${i}`, 300, 200))) }))
   list[0]!.at = clock.now()
   for (let m = 0; m < 4; m++) for (let i = 0; i < 3; i++) files[`${HOME}/images/m${m}p${i}.txt`] = jpeg
   await clock.advance(3000)
@@ -248,7 +248,7 @@ const logOf = (files: Record<string, string>) => JSON.parse(files[`${HOME}/rende
 test('images in a chat push the map\'s detail off; selecting an office without images brings it back in one render', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 }), now = clock.now()
   const list = Array.from({ length: 12 }, (_, i) => office(`c${i}`, now - i)) // 12 offices: all their detail fits without the pictures
-  list[0]!.chat = [0, 1].map(m => ({ who: 'tú' as const, text: `look ${m}`, pics: [0, 1].map(i => ({ file: `m${m}p${i}`, w: 300, h: 200 })) }))
+  list[0]!.chat = [0, 1].map(m => ({ who: 'tú' as const, text: `look ${m}`, pics: [0, 1].map(i => (chatPic(`m${m}p${i}`, 300, 200))) }))
   const files = serve(on, list)
   for (let m = 0; m < 2; m++) for (let i = 0; i < 2; i++) files[`${HOME}/images/m${m}p${i}.txt`] = 'A'.repeat(14000)
   const ui = await open($)
@@ -288,7 +288,7 @@ test('a burst of unlinked children keeps the people (AV: shared shapes); once li
 // The chat draws its pictures within a budget (BC), newest first, and the newest always draws: it carries the weight
 // of all four (at most 120,000 characters, under the Svg's own limit), the older ones are placeholders.
 const pictured = (list: Beat[], files: Record<string, string>, px: number) => {
-  list[0]!.chat = [0, 1].map(m => ({ who: 'tú' as const, text: `look ${m}`, pics: [0, 1].map(i => ({ file: `m${m}p${i}`, w: 300, h: 200 })) }))
+  list[0]!.chat = [0, 1].map(m => ({ who: 'tú' as const, text: `look ${m}`, pics: [0, 1].map(i => (chatPic(`m${m}p${i}`, 300, 200))) }))
   for (let m = 0; m < 2; m++) for (let i = 0; i < 2; i++) files[`${HOME}/images/m${m}p${i}.txt`] = 'A'.repeat(m + i === 2 ? Math.min(4 * px, 120000) : px)
 }
 test('without its people the map draws no selected tile and no person\'s tag', async ($, on) => {
@@ -603,7 +603,7 @@ const ownerCase = (now: number) => {
   const idle = ['i0', 'i1'].map((k, i) => { const b = newBeat(k, `Idle ${k}`, now - 20 * 60000 - i); setAgent(b, MAIN, b.at, { state: 'inactivo', activity: 'x' }); return b })
   tops[0]!.chat = [
     { who: 'claude', text: 'The map is drawn again.' },
-    { who: 'tú', text: 'look at these', pics: SHOTS.map(([, w, ht], i) => ({ file: `shot${i}`, w, h: ht, orig: `/home/test/shot${i}.png` })) },
+    { who: 'tú', text: 'look at these', pics: SHOTS.map(([, w, ht], i) => chatPic(`shot${i}`, w, ht, `/home/test/shot${i}.png`)) },
     { who: 'claude', text: 'I see three screenshots.' },
   ]
   return [...tops, ...kids, ...waits, ...idle]

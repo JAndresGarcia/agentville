@@ -55,13 +55,13 @@ const ROOM = 1
 const svg = (w: number, ht: number, html: string, cls = 'r') =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${ht}" width="${w}" height="${ht}"><style>${CSS}</style><foreignObject x="0" y="0" width="${w}" height="${ht}"><div xmlns="http://www.w3.org/1999/xhtml" class="${cls}">${html}</div></foreignObject></svg>`
 /** A picture: its Svg, its size in px, and its markup, so a strip (stripSvg) draws it exactly as it draws alone. */
-export type Pic = { svg: string; w: number; h: number; html: string; cls: string }
-const pic = (w: number, ht: number, html: string, cls = 'r'): Pic => ({ svg: svg(w, ht, html, cls), w, h: ht, html, cls })
+export type Pic = { svg: string; w: number; ht: number; html: string; cls: string }
+const pic = (w: number, ht: number, html: string, cls = 'r'): Pic => ({ svg: svg(w, ht, html, cls), w, ht, html, cls })
 /** Pictures side by side in one Svg, top-aligned, each in a box of its own width and `gap` px after it: their click runs
  * come from the same numbers (register.tsx). */
 export function stripSvg(parts: { p: Pic; gap: number }[]) {
-  const w = parts.reduce((n, x) => n + x.p.w + x.gap, 0), ht = Math.max(...parts.map(x => x.p.h))
-  return svg(w, ht, parts.map(({ p, gap }) => `<div class="${p.cls}" style="width:${p.w}px;height:${p.h}px;margin-right:${gap}px">${p.html}</div>`).join(''), 'strip')
+  const w = parts.reduce((n, x) => n + x.p.w + x.gap, 0), ht = Math.max(...parts.map(x => x.p.ht))
+  return svg(w, ht, parts.map(({ p, gap }) => `<div class="${p.cls}" style="width:${p.w}px;height:${p.ht}px;margin-right:${gap}px">${p.html}</div>`).join(''), 'strip')
 }
 
 /** "hace Ns" that counts up by itself (SMIL `set`, no redraw and no timer): how old a drawing's numbers are. `label(s)`
@@ -103,7 +103,7 @@ export type NoteReply = { label: string; line: string | null; detail: string } |
 // `chat`: the words of an "open its chat" pill, drawn last in its pills row, outlined, at the row's right end (on a
 // suggestion: once its session did not answer a press).
 export type NoteItem = { office: string | null; title: string; brief: string; chat?: string } | { office: string | null; asks: string; q: string; replies: NoteReply[]; chat?: string }
-export type PillRect = { i: number; act: 'start' | 'dismiss' | 'chat' | number; x: number; y: number; w: number; h: number }
+export type PillRect = { i: number; act: 'start' | 'dismiss' | 'chat' | number; x: number; y: number; w: number; ht: number }
 /**
  * How many lines `s` wraps to in a reply's line (.sw: 298 px, white-space normal, overflow-wrap anywhere): greedy by word,
  * each line kept one widest character of its own short of the edge (Chrome may lay it a little wider), a word wider than
@@ -161,7 +161,7 @@ export function notesCard(o: { title: string; items: NoteItem[]; more: (n: numbe
           const add = (rows < 0 ? 5 + L.btnH : next ? 8 + L.btnH : 0) + (k ? 5 + k * L.line : 0)
           if ((i === 0 && j === 0) || add <= 5 + L.line || y + add + (n - j - 1) * (5 + L.line) <= room + 1e-9) {
             if (rows < 0 || next) { rows++; px = 0 }
-            ps.push({ i, act: j, x: x0 + px, y: top + rows * (L.btnH + 8), w, h: L.btnH })
+            ps.push({ i, act: j, x: x0 + px, y: top + rows * (L.btnH + 8), w, ht: L.btnH })
             px += w + 8; y += add
             row += j === 0 ? `<span class="btn primary">${esc(words(r, j))}</span>` : `<span class="btn">${esc(r.label)}</span>`
             if (k === 1) lines += `<span class="s">${esc(r.line!)}</span>`
@@ -180,7 +180,7 @@ export function notesCard(o: { title: string; items: NoteItem[]; more: (n: numbe
         const next = rows >= 0 && px + w > 300, add = rows < 0 ? 5 + L.btnH : next ? 8 + L.btnH : 0
         if (i === 0 || add <= 5 + L.line || y + add <= room + 1e-9) {
           if (rows < 0 || next) rows++
-          ps.push({ i, act: 'chat', x: x0 + 300 - w, y: top + rows * (L.btnH + 8), w, h: L.btnH })
+          ps.push({ i, act: 'chat', x: x0 + 300 - w, y: top + rows * (L.btnH + 8), w, ht: L.btnH })
           y += add
           row += `<span class="btn chat" style="width:${w - 20}px">${esc(it.chat)}</span>`
         }
@@ -189,10 +189,10 @@ export function notesCard(o: { title: string; items: NoteItem[]; more: (n: numbe
     }
     y += L.line + 5 + L.line + 5
     const ws = textW(o.start) + 20, wd = textW(o.dismiss) + 20
-    ps.push({ i, act: 'start', x: x0, y, w: ws, h: L.btnH }, { i, act: 'dismiss', x: x0 + ws + 8, y, w: wd, h: L.btnH })
+    ps.push({ i, act: 'start', x: x0, y, w: ws, ht: L.btnH }, { i, act: 'dismiss', x: x0 + ws + 8, y, w: wd, ht: L.btnH })
     // Its chat pill, as a question's: the row's right end, or a row of its own when the row is full.
     const wc = it.chat === undefined ? 0 : textW(it.chat) + 20, own = ws + 8 + wd + 8 + wc > 300
-    if (it.chat !== undefined && wc <= 300) ps.push({ i, act: 'chat', x: x0 + 300 - wc, y: y + (own ? L.btnH + 8 : 0), w: wc, h: L.btnH })
+    if (it.chat !== undefined && wc <= 300) ps.push({ i, act: 'chat', x: x0 + 300 - wc, y: y + (own ? L.btnH + 8 : 0), w: wc, ht: L.btnH })
     const chat = it.chat !== undefined && wc <= 300 ? `<span class="btn chat" style="width:${wc - 20}px">${esc(it.chat)}</span>` : ''
     y += L.btnH + (chat && own ? 8 + L.btnH : 0)
     return { y, ps, html: `<div class="it">${office}<b>${esc(it.title)}</b><span class="s">${esc(it.brief)}</span><span class="acts${chat && own ? ' wrap' : ''}"><span class="btn primary">${esc(o.start)}</span><span class="btn">${esc(o.dismiss)}</span>${chat}</span></div>` }
@@ -210,8 +210,8 @@ export function notesCard(o: { title: string; items: NoteItem[]; more: (n: numbe
   const CH = Math.ceil(y + 10 + 1.5 - oy), W = CW + 2 * ox, H = oy + CH + SHADOW.bottom
   // The ×: the cards' close mark, top right, over the card (the mock's card has none; every card on the map does). `close`
   // is the drawn × itself; its click zone grows from it (register.tsx, `around(...)` where the card-close zone is made).
-  const close = { x: ox + CW - 20, y: oy + 10.5, w: 10, h: 10 }
-  const x = `<path d="M${close.x} ${close.y}L${close.x + close.w} ${close.y + close.h}M${close.x + close.w} ${close.y}L${close.x} ${close.y + close.h}" stroke="#a99f90" stroke-width="2" stroke-linecap="round"/>`
+  const close = { x: ox + CW - 20, y: oy + 10.5, w: 10, ht: 10 }
+  const x = `<path d="M${close.x} ${close.y}L${close.x + close.w} ${close.y + close.ht}M${close.x + close.w} ${close.y}L${close.x} ${close.y + close.ht}" stroke="#a99f90" stroke-width="2" stroke-linecap="round"/>`
   const body = `<style>${fontFaceCss(['pix700'])}\n${CSS}</style><foreignObject x="0" y="0" width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" class="r" style="display:block;padding:${oy}px ${ox}px 0"><div class="overlay"><div class="k">${esc(o.title)}</div>${items}${more ? `<span class="s">${esc(more)}</span>` : ''}</div></div></foreignObject>${x}`
-  return { W, H, CH, body, pills, close, shown, face: { x: ox, y: oy, w: CW, h: CH } } // face: the drawn card, without its shadow room
+  return { W, H, CH, body, pills, close, shown, face: { x: ox, y: oy, w: CW, ht: CH } } // face: the drawn card, without its shadow room
 }

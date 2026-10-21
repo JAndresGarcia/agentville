@@ -59,7 +59,7 @@ test('hit rects match the mock\'s controls within 1 CSS px, same keys, every ste
   for (const lang of LANGS) for (const o of demo(lang)) {
     const [mx, my] = movedBy(v, o.step)
     const want = Object.fromEntries(Object.entries(MOCK.rects.find((r) => r.lang === lang && r.step === o.n)!.c).map(([k, r]) => [k, [r[0]! + mx, r[1]! + my, r[2]!, r[3]!]]))
-    const got = Object.fromEntries(tourOverlay(o).hits.map((ht) => [ht.key, [ht.x0 * o.view.w, ht.y0 * o.view.h, (ht.x1 - ht.x0) * o.view.w, (ht.y1 - ht.y0) * o.view.h]]))
+    const got = Object.fromEntries(tourOverlay(o).hits.map((ht) => [ht.key, [ht.x0 * o.view.w, ht.y0 * o.view.ht, (ht.x1 - ht.x0) * o.view.w, (ht.y1 - ht.y0) * o.view.ht]]))
     expect([o.n, lang, Object.keys(got).sort()]).toEqual([o.n, lang, Object.keys(want).sort()])
     for (const [k, r] of Object.entries(want)) {
       const off = Math.max(...r.map((v, i) => Math.abs(v - got[k]![i]!)))
@@ -111,7 +111,7 @@ test('every modal variant fits the stage, the ones with a picked skill too; a pi
     const plain = tourOverlay({ ...o, flow: 'skill', skills: { names, page: 0 } }), picked = tourOverlay({ ...o, flow: 'skill', skills: { names, page: 0, picked: 'sk1' } })
     expect(picked.hits.map(x => x.key)).toEqual(plain.hits.map(x => x.key))
     const m = TOUR_LAYOUT.lang.en.modal[n > 6 ? 'flow-s2pk' : n > 3 ? 'flow-s2k' : 'flow-s1k']!, next = picked.hits.find(x => x.key === 'tour-next')!
-    expect(Math.abs(next.y0 * o.view.h - (o.view.h * 0.52 - m.h / 2 + m.c['tour-next']![1])) < 0.5).toBe(true) // at the measured place
+    expect(Math.abs(next.y0 * o.view.ht - (o.view.ht * 0.52 - m.h / 2 + m.c['tour-next']![1])) < 0.5).toBe(true) // at the measured place
     expect(picked.svg.includes('data-picked="1">Picked: sk1</p>')).toBe(true)
     expect(plain.svg.includes('data-picked')).toBe(false)
   }

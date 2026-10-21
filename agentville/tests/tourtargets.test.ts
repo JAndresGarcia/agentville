@@ -52,7 +52,7 @@ test('close to the mock: the same zones gen.mjs reads, within 0.06 of its TG tab
   const TG: Record<string, TourRect> = { island: [0.095, 0.25, 0.32, 0.56], jefe: [0.125, 0.27, 0.178, 0.46], team: [0.215, 0.39, 0.39, 0.64], board: [0.205, 0.335, 0.285, 0.485], screen: [0.158, 0.30, 0.215, 0.41] }
   const view = viewOf(rowsOf(demo()))
   for (const [k, mock] of Object.entries(TG)) {
-    const [mx, my] = movedBy(demo(), k), want = [mock[0] + mx / view.w, mock[1] + my / view.h, mock[2] + mx / view.w, mock[3] + my / view.h] // the even grid moved it
+    const [mx, my] = movedBy(demo(), k), want = [mock[0] + mx / view.w, mock[1] + my / view.ht, mock[2] + mx / view.w, mock[3] + my / view.ht] // the even grid moved it
     const got = tg[k as 'island']!
     expect([k, Math.max(...want.map((v, i) => Math.abs(v - got[i]!))) <= 0.06]).toEqual([k, true])
   }
@@ -76,7 +76,7 @@ test('lobby and despacho: the strip floors, with the plaque, the resting agents 
 
 test('A1: the lobby frames its sofas, coffee table, TV corner, coffee corner and plaque, and none of Producto\'s room', () => {
   const v = viewOf(rowsOf(demo())), tg = tourTargets(demo(), NOW)
-  const has = (r: TourRect, x: number, y: number, z = 0) => { const X = ((x - y) * 16 - v.x) / v.w, Y = (((x + y) * 16) / 2 - z * 16 - v.y) / v.h; return X >= r[0] && X <= r[2] && Y >= r[1] && Y <= r[3] }
+  const has = (r: TourRect, x: number, y: number, z = 0) => { const X = ((x - y) * 16 - v.x) / v.w, Y = (((x + y) * 16) / 2 - z * 16 - v.y) / v.ht; return X >= r[0] && X <= r[2] && Y >= r[1] && Y <= r[3] }
   const yes: [string, number, number, number][] = [['sofa back', 4.5, 4.5, 1.2], ['sofa front', 4.5, 8.9, 0], ['coffee table', 5, 6.5, 0.45], ['tv', 9.5, 0.3, 1.8], ['ps5', 10.72, 0.39, 1.28], ['cushion', 8.5, 2.6, 0.3], ['lobby plaque', 7, 0, 4.15],
     ['coffee counter', 1.4, 0.85, 0.9], ['coffee counter', 4.3, 0.15, 0], ['coffee counter', 1.4, 0.15, 0.9], ['coffee counter', 4.3, 0.85, 0], ['coffee machine', 3.3, 0.75, 1.85]]
   const no: [string, number, number, number][] = [['producto plaque', 17.5, 0, 4.15], ['table', 15.1, 5.6, 0], ['table', 18.9, 5.6, 0], ['table', 18.9, 7.4, 0], ['table', 15.1, 7.4, 0], ['room centre', (PROD_ROOM[0]! + PROD_ROOM[2]!) / 2, (PROD_ROOM[1]! + PROD_ROOM[3]!) / 2, 0],
@@ -159,7 +159,7 @@ test('AC3: on the even grid every seated agent\'s zone holds its feet, and each 
   for (const n of [1, 2, 3, 5, 6, 7, 10, 13, 16]) {
     const w = floorView(worldFromBeats(null, team(n, NOW), NOW), 0), v = viewOf(rowsOf(w)), zones = hotspots(w, NOW)
     for (const a of w.agents.filter(x => !x.walk && x.posture === 'sit')) {
-      const X = ((a.x - a.y) * 16 - v.x) / v.w, Y = (((a.x + a.y) * 16) / 2 - v.y) / v.h
+      const X = ((a.x - a.y) * 16 - v.x) / v.w, Y = (((a.x + a.y) * 16) / 2 - v.y) / v.ht
       expect([n, a.id, zones.some(z => z.id === a.id && z.priority === 1 && z.x0 <= X && X <= z.x1 && z.y0 <= Y && Y <= z.y1)]).toEqual([n, a.id, true])
     }
     for (const d of [w.depts[0]!, w.depts.at(-1)!]) {

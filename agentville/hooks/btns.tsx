@@ -9,14 +9,14 @@ import type { ClientModule } from 'claude-code'
 // `plain` is set or left out, never false: an explicit `plain={false}` makes the desktop refuse the whole Client.
 // `primary` is a plain Button in a Box of the accent (dark and saturated: a plain Button's text keeps the app's light
 // colour, so nothing light ever goes behind one) and says so in its words too, "▸ "; a selected item says "✓ " instead.
-// `h`: a hit row of the session list's click layer, `h` whole text cells tall (a Client on the desktop drops a fraction)
+// `cells`: a hit row of the session list's click layer, `cells` whole text cells tall (a Client on the desktop drops a fraction)
 // and nothing visible: one invisible cover Button per cell, each posting the item's key, no hover (`head`: an empty row, no
 // press). The pane draws the list itself under the Client from the same items and heights, so a hit row never drifts
-// from its drawn row. Items with `h` sit with no gap.
+// from its drawn row. Items with `cells` sit with no gap.
 // `chat`: a list row's "go to chat" key. A block draws "↗" at the right end of its name line, a CHAT_W-cell Box laid
 // over the covers (the element on top takes the click); a hit row's first CHAT_LINES cover lines end in a CHAT_W-cell
 // Button posting it, where the pane draws its ↗ (register.tsx, the same CHAT_W from the list's right edge).
-export type BtnItem = { key: string; label: string; primary?: boolean; selected?: boolean; desc?: string; h?: number; head?: boolean; chat?: string }
+export type BtnItem = { key: string; label: string; primary?: boolean; selected?: boolean; desc?: string; cells?: number; head?: boolean; chat?: string }
 // `tint`: /agentville calibrar clics paints the Client's region (a background, no border: a border adds cells).
 export type BtnsProps = { items: BtnItem[]; dir: 'row' | 'column'; colors: { ink: string; dim: string; accent: string; glow: string }; tint?: string }
 
@@ -31,13 +31,13 @@ export const CHAT_LINES = 2
 const CHAT_LABEL = '\u00a0↗\u00a0' // CHAT_W cells, the arrow in the middle
 
 /** The elements Btns draws for these props: the pane counts a Client's tree toward its element limit. */
-export const btnsElements = (p: BtnsProps) => 1 + p.items.reduce((n, it) => n + (it.h !== undefined ? (it.head ? 1 : 1 + (it.chat ? 3 * it.h + 2 * Math.min(CHAT_LINES, it.h) : 2 * it.h)) : it.desc !== undefined ? (it.chat ? 13 : 8) : it.primary ? 2 : 1), 0)
+export const btnsElements = (p: BtnsProps) => 1 + p.items.reduce((n, it) => n + (it.cells !== undefined ? (it.head ? 1 : 1 + (it.chat ? 3 * it.cells + 2 * Math.min(CHAT_LINES, it.cells) : 2 * it.cells)) : it.desc !== undefined ? (it.chat ? 13 : 8) : it.primary ? 2 : 1), 0)
 
 const Btns: ClientModule<BtnsProps> = (p, s) => {
   const { Box, Text, Button } = s.elements
   const c = p.colors, press = (key: string) => () => s.post({ press: key })
   const words = (it: BtnItem) => (it.selected ? `✓ ${it.label}` : it.primary ? `▸ ${it.label}` : it.label)
-  // A hit row: its height in cells (`cells`, never `h`, the JSX factory), a cover Button per cell stacked in flow, so
+  // A hit row: its height in cells (`cells`: no name in a .tsx file is the JSX factory's), a cover Button per cell stacked in flow, so
   // the row is that many text rows tall from its own content even where the desktop ignores a Box's `height`.
   // A row with a chat key: every cover line spans the row (the map's band recipe, mod-clicks 3: a clipped Box per Button),
   // the first CHAT_LINES ending in the ↗'s CHAT_W cells.
@@ -57,8 +57,8 @@ const Btns: ClientModule<BtnsProps> = (p, s) => {
     </Box>
   ))
   return (
-    <Box flexDirection={p.dir} gap={p.items.some(it => it.h !== undefined) ? 0 : 1} flexWrap={p.dir === 'row' ? 'wrap' : 'nowrap'} alignItems={p.dir === 'row' ? 'center' : 'stretch'} backgroundColor={p.tint}>
-      {p.items.map(it => (it.h !== undefined ? hitRow(it, it.h) : it.desc !== undefined ? (
+    <Box flexDirection={p.dir} gap={p.items.some(it => it.cells !== undefined) ? 0 : 1} flexWrap={p.dir === 'row' ? 'wrap' : 'nowrap'} alignItems={p.dir === 'row' ? 'center' : 'stretch'} backgroundColor={p.tint}>
+      {p.items.map(it => (it.cells !== undefined ? hitRow(it, it.cells) : it.desc !== undefined ? (
         <Box position="relative" flexDirection="column">
           {it.chat ? (
             <Box flexDirection="row">

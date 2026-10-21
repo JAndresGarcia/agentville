@@ -19,7 +19,7 @@ export type TourPal = 'lobby' | 'noche' | 'hotel'
 export const TOUR_PALS: readonly TourPal[] = ['lobby', 'noche', 'hotel']
 export const TOUR_FLOWS: readonly TourFlow[] = ['agentville', 'skill', 'none']
 export const SKILLS_PER_PAGE = 6
-export type TourView = { x: number; y: number; w: number; h: number }
+export type TourView = { x: number; y: number; w: number; ht: number }
 export type TourOverlayOpts = {
   step: TourStep
   /** Position among the steps shown (1-based) and how many are shown. */
@@ -187,7 +187,7 @@ const LH = Math.floor(14 * 1.35 * 64) / 64 // the bubble's line height as Chrome
  * spotlight step, the bubble's rect as fractions of the stage. */
 export function tourOverlay(o: TourOverlayOpts): { svg: string; alt: string; hits: TourHit[]; card?: TourRect } {
   const L = tourCopy(o.lang, o.name ?? ''), lay = TOUR_LAYOUT.lang[o.lang]
-  const v = { w: Number(n1(o.view.w)), h: Number(n1(o.view.h)) }
+  const v = { w: Number(n1(o.view.w)), h: Number(n1(o.view.ht)) }
   const st = o.step === 'chat' ? { title: t('tour.chat.title', undefined, o.lang), say: t('tour.chat.say', undefined, o.lang), body: undefined } : L.s[MOCK_STEPS.indexOf(o.step)]!
   const first = o.n <= 1, last = o.n >= o.total
   const hits: TourHit[] = []

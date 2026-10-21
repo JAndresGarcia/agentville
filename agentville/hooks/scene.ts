@@ -79,13 +79,13 @@ export const depthOf = (rows: number) => ISLES_Y + Math.max(1, rows) * STEP_Y
 /** The picture's frame for a floor of `rows` rows: every layer of that floor uses it, so they stack exactly. */
 export function viewOf(rows: number) {
   const H = depthOf(rows), [x0] = P(0, H), [x1] = P(W, 0), [, y0] = P(0, 0, 5.2), [, y1] = P(W, H, -0.6)
-  return { x: x0 - 16, y: y0 - 8, w: x1 - x0 + 32, h: y1 - y0 + 16 }
+  return { x: x0 - 16, y: y0 - 8, w: x1 - x0 + 32, ht: y1 - y0 + 16 }
 }
 /** Whether an office is on the map: awake and not idle (an office from another floor comes along `away`). */
 export const present = (d: AgentvilleDept) => !d.asleep && !d.idle
 /** Rows of islands a world's floor uses (its view carries them; a whole world counts floor 0): the rows its rooms take. */
 export const rowsOf = (w: AgentvilleWorld, floor = 0) => w.rows ?? Math.max(1, ...w.depts.filter((d) => !d.away && (d.floor ?? 0) === floor && d.room.length).map((d) => Math.round((d.room[3]! - ISLE_D - ISLES_Y) / STEP_Y) + 1))
-const svg = (body: string, rows: number) => { const v = viewOf(rows); return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(v.x)} ${n(v.y)} ${n(v.w)} ${n(v.h)}" width="${n(v.w)}" height="${n(v.h)}" image-rendering="pixelated" style="image-rendering:pixelated">${body}</svg>` } // inherited: the people's pictures stay sharp
+const svg = (body: string, rows: number) => { const v = viewOf(rows); return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(v.x)} ${n(v.y)} ${n(v.w)} ${n(v.ht)}" width="${n(v.w)}" height="${n(v.ht)}" image-rendering="pixelated" style="image-rendering:pixelated">${body}</svg>` } // inherited: the people's pictures stay sharp
 // The store's 'svg-use' switch (on unless stored false; `/agentville dibujo simple` turns it off): a shape the floor
 // repeats (a chair, a desk, a plant, an island's floor, a bubble's frame) is drawn once in its picture's <defs> and
 // placed with <use>; off, every copy is drawn inline as before. The page counts every character (mod-clicks 4c).
@@ -918,16 +918,16 @@ export function cardOver(w: AgentvilleWorld, at: [number, number, number], body:
 function cardAt(w: AgentvilleWorld, at: [number, number, number], cw: number, ch: number) {
   const rows = rowsOf(w), v = viewOf(rows), [X, Y] = P(...at)
   if (at === CORNER) return { rows, v, x: v.x + v.w - cw - 4, y: v.y + 4 }
-  return { rows, v, x: Math.min(Math.max(X - cw / 2, v.x + 4), v.x + v.w - cw - 4), y: Math.min(Math.max(Y - ch - 6, v.y + 4), v.y + v.h - ch - 4) }
+  return { rows, v, x: Math.min(Math.max(X - cw / 2, v.x + 4), v.x + v.w - cw - 4), y: Math.min(Math.max(Y - ch - 6, v.y + 4), v.y + v.ht - ch - 4) }
 }
 /** A pinned card's ×, in the card's own pixels: drawn 15 px in from its right edge and 15.5 px down (in line with the
  * card's padding), 10 px square. Its click zone grows from this same rect (register.tsx, `around(...)` where the card-close zone is made).
  * CLOSE_W keeps text clear of it. */
 export const CLOSE_W = 26
-export const closeGlyphAt = (cw: number) => ({ x: cw - 20, y: 10.5, w: 10, h: 10 })
+export const closeGlyphAt = (cw: number) => ({ x: cw - 20, y: 10.5, w: 10, ht: 10 })
 export const cardCloseGlyph = (cw: number, ink: string) => {
   const g = closeGlyphAt(cw)
-  return `<path d="M${g.x} ${g.y}L${g.x + g.w} ${g.y + g.h}M${g.x + g.w} ${g.y}L${g.x} ${g.y + g.h}" stroke="${ink}" stroke-width="2" stroke-linecap="round"/>`
+  return `<path d="M${g.x} ${g.y}L${g.x + g.w} ${g.y + g.ht}M${g.x + g.w} ${g.y}L${g.x} ${g.y + g.ht}" stroke="${ink}" stroke-width="2" stroke-linecap="round"/>`
 }
 type Rect01 = { x0: number; x1: number; y0: number; y1: number }
 /** A zone (fractions) grown evenly around `r` to at least minW by minH: a small drawn mark, an easy target. */
@@ -942,13 +942,13 @@ export const within = (r: Rect01, b: Rect01): Rect01 => ({ x0: Math.max(r.x0, b.
 /** The rect of a card that cardOver places, as fractions of the map. */
 export function cardRect(w: AgentvilleWorld, at: [number, number, number], cw: number, ch: number) {
   const { v, x, y } = cardAt(w, at, cw, ch)
-  return { x0: (x - v.x) / v.w, x1: (x + cw - v.x) / v.w, y0: (y - v.y) / v.h, y1: (y + ch - v.y) / v.h }
+  return { x0: (x - v.x) / v.w, x1: (x + cw - v.x) / v.w, y0: (y - v.y) / v.ht, y1: (y + ch - v.y) / v.ht }
 }
 /** A part of a card that cardOver places (`r` in the card's own pixels), as fractions of the map: its buttons' zones come
  * from the same numbers that draw them. */
-export function cardPart(w: AgentvilleWorld, at: [number, number, number], cw: number, ch: number, r: { x: number; y: number; w: number; h: number }) {
+export function cardPart(w: AgentvilleWorld, at: [number, number, number], cw: number, ch: number, r: { x: number; y: number; w: number; ht: number }) {
   const { v, x, y } = cardAt(w, at, cw, ch)
-  return { x0: (x + r.x - v.x) / v.w, x1: (x + r.x + r.w - v.x) / v.w, y0: (y + r.y - v.y) / v.h, y1: (y + r.y + r.h - v.y) / v.h }
+  return { x0: (x + r.x - v.x) / v.w, x1: (x + r.x + r.w - v.x) / v.w, y0: (y + r.y - v.y) / v.ht, y1: (y + r.y + r.ht - v.y) / v.ht }
 }
 /** Suggested sessions waiting for you: a yellow note on the right of your desk's top saying how many; a click opens their
  * card over the map. The tag and its click zone share these numbers. */
@@ -1214,7 +1214,7 @@ export const SLICES = 4 // the prism's V
 export function hotspots(w0: AgentvilleWorld, now: number, light = false, focus?: string, notes: string | null = null, dt: Detail = FULL): Zone[] {
   const w = clone(w0)
   settle(w, now)
-  const v = viewOf(rowsOf(w)), fx = (X: number) => (X - v.x) / v.w, fy = (Y: number) => (Y - v.y) / v.h
+  const v = viewOf(rowsOf(w)), fx = (X: number) => (X - v.x) / v.w, fy = (Y: number) => (Y - v.y) / v.ht
   const zones: Zone[] = []
   // A crowded floor clicks by island: one zone per island (it selects the session) instead of one prism per agent,
   // which would pass the ~1,800 elements that broke clicks before. Agents off the islands keep their prisms.
@@ -1334,7 +1334,7 @@ const zoneRects = (zones: Zone[], groups: string[]) => zones.filter((z) => group
 export function tourTargets(view: AgentvilleWorld, now: number, focus?: string): TourTargets {
   const w = clone(view)
   settle(w, now)
-  const v = viewOf(rowsOf(w)), fx = (X: number) => (X - v.x) / v.w, fy = (Y: number) => (Y - v.y) / v.h
+  const v = viewOf(rowsOf(w)), fx = (X: number) => (X - v.x) / v.w, fy = (Y: number) => (Y - v.y) / v.ht
   const pt = ([X, Y]: [number, number]) => [fx(X), fy(Y), fx(X), fy(Y)]
   const floor = (x0: number, x1: number) => bbox([P(x0, 0), P(x1, 0), P(x1, STRIP), P(x0, STRIP)].map(pt))!
   const depts = w.depts.filter((d) => !d.away).sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0))

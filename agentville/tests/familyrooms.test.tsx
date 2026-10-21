@@ -187,7 +187,7 @@ test('B5: each seated agent clicks inside its own room, each room opens its own 
   for (const beats of [house(1, 2, 2), house(1, 5, 1), house(3, 3, 2), [office('p0', NOW, undefined, true), office('p0c0', NOW - 1, 'p0'), office('s0', NOW - 2)]]) {
     const [v] = views(beats), view = viewOf(rowsOf(v!)), zones = hotspots(v!, NOW)
     for (const a of v!.agents.filter(x => !x.walk && x.posture === 'sit')) {
-      const room = v!.depts.find(d => d.id === a.dept)!.room, [X, Y] = P(a.x, a.y), x = (X - view.x) / view.w, y = (Y - view.y) / view.h
+      const room = v!.depts.find(d => d.id === a.dept)!.room, [X, Y] = P(a.x, a.y), x = (X - view.x) / view.w, y = (Y - view.y) / view.ht
       expect([a.id, a.x > room[0]! && a.x < room[2]! && a.y > room[1]! && a.y < room[3]!]).toEqual([a.id, true])
       expect([a.id, zones.some(z => z.id === a.id && z.priority === 1 && z.x0 <= x && x <= z.x1 && z.y0 <= y && y <= z.y1)]).toEqual([a.id, true])
     }

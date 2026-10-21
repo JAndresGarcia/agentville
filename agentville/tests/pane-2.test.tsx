@@ -1093,8 +1093,8 @@ test('chrome: the notes card puts its pills, its × zone and its mock markup whe
   const c = notesCardOf({ title: 'Sesiones sugeridas · Nico', items: [{ office: null, title: 'a', brief: 'b' }, { office: null, title: 'c', brief: 'd' }], more: n => `+${n}`, start: '▸ Arrancar', dismiss: 'Descartar', maxH: 1000 })
   const near = (got: number[], want: number[]) => got.every((v, i) => Math.abs(v - want[i]!) <= 0.2)
   const want = WANT_PILLS
-  expect(c.pills.map((p, i) => near([p.x, p.y, p.w, p.h], want[i]!))).toEqual([true, true, true, true])
-  expect([c.W, c.close]).toEqual([367, { x: 327, y: 24.5, w: 10, h: 10 }]) // the drawn ×: its zone grows from it
+  expect(c.pills.map((p, i) => near([p.x, p.y, p.w, p.ht], want[i]!))).toEqual([true, true, true, true])
+  expect([c.W, c.close]).toEqual([367, { x: 327, y: 24.5, w: 10, ht: 10 }]) // the drawn ×: its zone grows from it
   for (const part of ['<div class="overlay">', '<div class="k">Sesiones sugeridas · Nico</div>', '<span class="btn primary">▸ Arrancar</span>', '<span class="btn">Descartar</span>', 'font-family:"Pixelify Sans"']) expect([part, c.body.includes(part)]).toEqual([part, true])
   expect(btnSvg('▸ Arrancar', true).svg).toContain('<span class="btn primary">▸ Arrancar</span>')
   expect(toggleSvg({ label: '▸ Abrir siempre', on: false, state: 'Apagado' }).svg).toContain('<span class="chip off"><i></i>Apagado</span>')
@@ -1251,7 +1251,7 @@ test('Notes AC8: the notes card sits at the view\'s top-right corner, 4 px in, a
     const v = viewOf(w.rows ?? 1)
     for (const H of [120, 340]) {
       const r = cardRect(w, notesTop(), 367, H)
-      expect([w.rows, Math.abs(r.x1 - (1 - 4 / v.w)) < 1e-9, Math.abs(r.y0 - 4 / v.h) < 1e-9]).toEqual([w.rows, true, true])
+      expect([w.rows, Math.abs(r.x1 - (1 - 4 / v.w)) < 1e-9, Math.abs(r.y0 - 4 / v.ht) < 1e-9]).toEqual([w.rows, true, true])
     }
   }
   expect(rows(1).rows).toBe(1)
@@ -1289,9 +1289,9 @@ test('Notes: at 600, 848 and 1300 px and 1 or 3 rows the card keeps its height b
   const q = { office: null, asks: 'x te pregunta (bloqueado):', q: 'y', replies: ['Uno', 'Dos', 'Tres', 'Cuatro'].map(label => ({ label, line: `${label}: «Haz ${label}»`, detail: '' })) }
   const offer = { office: null, title: 'a', brief: 'b' }
   for (const w of [rowsOfN(1), three]) for (const px of [600, 848, 1300]) for (const items of [[offer, offer, offer], [q, offer]]) {
-    const v = viewOf(w.rows ?? 1), k = px / v.w, maxH = Math.min(0.45 * v.h * k, 260)
+    const v = viewOf(w.rows ?? 1), k = px / v.w, maxH = Math.min(0.45 * v.ht * k, 260)
     const c = notesCardOf({ title: 'N', items, more: n => `+${n}`, start: 's', dismiss: 'd', maxH })
-    const r = cardRect(w, notesTop(), c.W / k, c.H / k), bottom = r.y0 + (14 + c.CH) / k / v.h // the card's border, not its shadow
+    const r = cardRect(w, notesTop(), c.W / k, c.H / k), bottom = r.y0 + (14 + c.CH) / k / v.ht // the card's border, not its shadow
     expect([w.rows, px, c.shown >= 1, c.shown === 1 || c.CH <= maxH, bottom <= 1]).toEqual([w.rows, px, true, true, true])
   }
 })
@@ -1942,9 +1942,9 @@ function coversAll(cells: Awaited<ReturnType<typeof cellsOf>>, r: { x0: number; 
 function cardFrame(source: string) {
   const vb = /viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"/.exec(source)!.slice(1).map(Number), tr = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(source)!.slice(1).map(Number)
   const k = Number(/scale\(([-\d.e]+)\)/.exec(source)?.[1] ?? 1)
-  const at = (r: { x: number; y: number; w: number; h: number }) => ({ x0: (tr[0]! + r.x * k - vb[0]!) / vb[2]!, x1: (tr[0]! + (r.x + r.w) * k - vb[0]!) / vb[2]!, y0: (tr[1]! + r.y * k - vb[1]!) / vb[3]!, y1: (tr[1]! + (r.y + r.h) * k - vb[1]!) / vb[3]! })
+  const at = (r: { x: number; y: number; w: number; ht: number }) => ({ x0: (tr[0]! + r.x * k - vb[0]!) / vb[2]!, x1: (tr[0]! + (r.x + r.w) * k - vb[0]!) / vb[2]!, y0: (tr[1]! + r.y * k - vb[1]!) / vb[3]!, y1: (tr[1]! + (r.y + r.ht) * k - vb[1]!) / vb[3]! })
   const m = /<path d="M([\d.]+) ([\d.]+)L([\d.]+) ([\d.]+)M[^"]*" stroke="#[0-9a-f]+" stroke-width="2" stroke-linecap="round"\/>/.exec(source)!.slice(1).map(Number)
-  return { at, vb, x: at({ x: m[0]!, y: m[1]!, w: m[2]! - m[0]!, h: m[3]! - m[1]! }) } // x: the drawn ×
+  return { at, vb, x: at({ x: m[0]!, y: m[1]!, w: m[2]! - m[0]!, ht: m[3]! - m[1]! }) } // x: the drawn ×
 }
 
 test('AT: the × of a card, the notes card\'s pills and the disk screen: each zone in the drawn layer covers what is drawn; the disk\'s no more', async ($, on) => {

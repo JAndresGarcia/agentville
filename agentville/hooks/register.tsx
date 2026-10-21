@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, UiCopyArgs } from 'claude-code'
+import type { EngineInterface, On, PluginOptions, UiCopyArgs } from 'claude-code'
 import type { AgentvilleChat, AgentvilleDept, AgentvilleReply, AgentvilleUsage, AgentvilleWorld } from '../types'
-import { CMD_MAX, DISMISS, cmdTitle, isHiddenCmd, isImg, isToolCall, GUARDED_TOOLS, MAIN, METAS_MAX, SLEEP_MS, asksFrom, pressTitle, closedOk, closingsFrom, fillTextOf, isIdle, addSaid, addStep, asCommand, guardedCommand, guardedPath, HOLD_MS, isCutCmd, isMaskedCmd, trusted, TASK, offerOrderOk, beatsDir, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, commandsFile, controlFile, doing, endStep, isTaskList, metasOf, newBeat, notesFrom, openOf, pending, pushChat, roleOf, setAgent, titleFrom, viewerFile, OFFER_TTL, REFUSED, asksOfTranscript, shownOffers, asPrompt, signOf } from './beat'
-import type { Beat, Cmd, CmdRow, ImgRef, Closing } from './beat'
+import { CMD_MAX, DISMISS, cmdTitle, isHiddenCmd, isImg, isToolCall, GUARDED_TOOLS, MAIN, METAS_MAX, SLEEP_MS, asksFrom, pressTitle, closedOk, closingsFrom, fillTextOf, isIdle, addSaid, addStep, asCommand, guardedCommand, guardedPath, HOLD_MS, isCutCmd, isMaskedCmd, trusted, TASK, offerOrderOk, beatsDir, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, commandsFile, controlFile, doing, endStep, isTaskList, metasOf, newBeat, notesFrom, openOf, pending, pushChat, roleOf, setAgent, titleFrom, viewerFile, OFFER_TTL, REFUSED, asksOfTranscript, shownOffers, asPrompt, signOf, chatPic, picHt } from './beat'
+import type { Beat, ChatPic, Cmd, CmdRow, ImgRef, Closing } from './beat'
 import { blocksOf, foldBlocks } from './rich'
 import type { Block, Run } from './rich'
 import { PALETTES, PALETTE_KEY, STATE_COLORS, paletteOf, planIcon, progressBar, tint } from './look'
@@ -345,7 +345,7 @@ export type Act =
   | { k: 'lang'; lang: 'es' | 'en' } | { k: 'flow'; flow: Flow | null } | { k: 'skills'; page: number } | { k: 'use'; id: string; close?: true }
   | { k: 'stop'; dept: string } | { k: 'chat'; dept: string; back: number } | { k: 'unattach'; dept: string }
   | { k: 'send'; dept: string; to: string } | { k: 'palette'; key: string } | { k: 'map'; shown: boolean } | { k: 'idleAll' } | { k: 'listPage'; page: number }
-  | { k: 'diskOrder'; id: string } | { k: 'diskImages' } | { k: 'zoom'; pic: { file: string; w: number; h: number; orig?: string } }
+  | { k: 'diskOrder'; id: string } | { k: 'diskImages' } | { k: 'zoom'; pic: ChatPic }
   | { k: 'answer'; dept: string; ask: string; text: string } | { k: 'archive'; dept: string; ask: string }
   | { k: 'offer'; dept: string; id: string; title: string } | { k: 'reload'; dept: string } | { k: 'openChat'; dept: string; start?: { id: string; title: string }; approve?: true }
 export const acts = new Map<string, Act>()
@@ -512,7 +512,7 @@ export const mapDrawPx = (columns: number) => Math.min(mapPx(columns), MAP_MAX_P
 export const kTok = (v: number) => (v >= 999500 ? `${(v / 1e6).toFixed(1).replace(/\.0$/, '')}M` : v >= 1000 ? `${(v / 1000).toFixed(v >= 100000 ? 0 : 1).replace(/\.0$/, '')}k` : String(v))
 export const bandCount = (rows: number, columns: number) => {
   const v = viewOf(rows)
-  return Math.max(1, Math.ceil((mapDrawPx(columns) * v.h) / v.w / BAND_PX))
+  return Math.max(1, Math.ceil((mapDrawPx(columns) * v.ht) / v.w / BAND_PX))
 }
 // The band count a map of `rows` last used, kept while each band stays BAND_MIN to BAND_MAX px: a pane resized a little
 // keeps its bands, so its hit Clients and their Buttons keep their keys (a press on a key the newest drawing dropped
@@ -520,7 +520,7 @@ export const bandCount = (rows: number, columns: number) => {
 const BAND_MIN = 15, BAND_MAX = 20
 const bandKeep = new Map<number, number>()
 const bandsAt = (rows: number, columns: number) => {
-  const v = viewOf(rows), ht = (mapDrawPx(columns) * v.h) / v.w, had = bandKeep.get(rows)
+  const v = viewOf(rows), ht = (mapDrawPx(columns) * v.ht) / v.w, had = bandKeep.get(rows)
   if (had && ht / had >= BAND_MIN && ht / had <= BAND_MAX) return had
   const n = bandCount(rows, columns)
   bandKeep.set(rows, n)
@@ -634,7 +634,7 @@ let listPage = 0 // the list's page past LIST_MAX rows
 let waitSeen = new Set<string>() // the sessions in "Te esperan" at the last drawing: a new one sends the list to its first page
 const IDLE_MAX = 5
 const INDENT = 2 // text cells a list row moves right per level of nesting (drawn up to 3 levels)
-// The click-layer list's row heights in text cells (btns.tsx `h`), the same for a drawn row and its hit row, with no px
+// The click-layer list's row heights in text cells (btns.tsx `cells`), the same for a drawn row and its hit row, with no px
 // gap between rows on either side: a session row 3 (today's card centred, the gap to the next row inside), a group
 // header 1, "Ver N más" and the page item 1. Whole cells only: a Client on the desktop drops a fractional height (live
 // 2026-10-20, rows of 2.6 collapsed and a click on the first row reached Ver N más).
@@ -769,7 +769,7 @@ async function readBeats($: EngineInterface) {
       // Only the pane's look at the app's records says a chat is archived (lookArchived), never a heartbeat.
       if (typeof b.local === 'string' && archivedIds.has(b.local)) b.archived = true; else delete b.archived
       // A picture's file name goes into paths too (its thumbnail, the zoom's temp files).
-      if (Array.isArray(b.chat)) for (const c of b.chat) if (c?.pics) c.pics = (Array.isArray(c.pics) ? c.pics : []).filter(p => typeof p?.file === 'string' && /^[\w-]+$/.test(p.file) && dim(p.w) && dim(p.h) && (p.orig === undefined || typeof p.orig === 'string'))
+      if (Array.isArray(b.chat)) for (const c of b.chat) if (c?.pics) c.pics = (Array.isArray(c.pics) ? c.pics : []).filter(p => typeof p?.file === 'string' && /^[\w-]+$/.test(p.file) && dim(p.w) && dim(picHt(p)) && (p.orig === undefined || typeof p.orig === 'string'))
       beats.push(b)
     } catch { /* a file being written: next pass */ }
   }
@@ -1079,7 +1079,7 @@ async function thumb($: EngineInterface, ref: ImgRef) {
     if (!w || !ht || !base64) return null
     await $.fs.write(`${dir}/${file}.txt`, base64)
     made = true
-    return { file, w, h: ht, orig: src }
+    return chatPic(file, w, ht, src)
   } catch { return null } finally {
     await rmFiles($, [b64, jpg, ...(!made && 'data' in ref ? [src] : [])])
   }
@@ -1088,8 +1088,8 @@ async function thumb($: EngineInterface, ref: ImgRef) {
 // The viewer a click on a chat image opens inside the pane. A whole image passes the Svg element's size limit, so it is
 // cut into 100-row jpeg strips drawn one under the other (the last one clipped to the rows the image has).
 const STRIP = 100, ZOOM_BUDGET = 100000
-let zoom: { file: string; orig?: string; w: number; h: number; cut: boolean; strips: string[] } | 'loading' | null = null
-async function openZoom($: EngineInterface, p: { file: string; w: number; h: number; orig?: string }) {
+let zoom: { file: string; orig?: string; w: number; ht: number; cut: boolean; strips: string[] } | 'loading' | null = null
+async function openZoom($: EngineInterface, p: ChatPic) {
   zoom = 'loading'
   $.ui.invalidate('ui.render')
   // The original comes from a heartbeat (any session's): checked again here before sips or Vista Previa touch it.
@@ -1115,7 +1115,7 @@ async function openZoom($: EngineInterface, p: { file: string; w: number; h: num
     } catch { /* what was cut so far still shows */ } finally { await rmFiles($, [big, part]) }
   }
   // A file gone (or never kept, as for images from before) falls back to the thumbnail, drawn larger.
-  zoom = w && ht && strips.length ? { file: p.file, orig, w, h: Math.min(ht, strips.length * STRIP), cut: strips.length * STRIP < ht, strips } : { file: p.file, orig, w: p.w, h: p.h, cut: false, strips: [] }
+  zoom = w && ht && strips.length ? { file: p.file, orig, w, ht: Math.min(ht, strips.length * STRIP), cut: strips.length * STRIP < ht, strips } : { file: p.file, orig, w: p.w, ht: picHt(p), cut: false, strips: [] }
   $.ui.invalidate('ui.render')
 }
 
@@ -1784,7 +1784,7 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
   return !!c
 }
 
-export const register: Register = (on, options) => {
+export function register(on: On, options: PluginOptions) {
   const option = (options as { team_flow?: string } | undefined)?.team_flow
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
@@ -2279,7 +2279,7 @@ export const register: Register = (on, options) => {
       const drawn = lines.map((line, li) => {
         const gaps = line.map((p, i) => (i < line.length - 1 ? p.gap ?? GAP : 0))
         const runs = line.flatMap((p, i): [number, string | null][] => (gaps[i] ? [[p.pic.w, p.key], [gaps[i]!, null]] : [[p.pic.w, p.key]]))
-        const w = runs.reduce((n, [px]) => n + px, 0), rows = Math.max(1, Math.round(Math.max(...line.map(p => p.pic.h)) / 21)), at = row
+        const w = runs.reduce((n, [px]) => n + px, 0), rows = Math.max(1, Math.round(Math.max(...line.map(p => p.pic.ht)) / 21)), at = row
         const words = Object.fromEntries(line.map(p => [p.key, p.words]))
         row += rows
         return (
@@ -2292,16 +2292,17 @@ export const register: Register = (on, options) => {
       return drawn.length === 1 ? drawn[0] : <Box key={`strips-${client}`} flexDirection="column" gap="sm">{drawn}</Box>
     }
     // The pane's buttons, drawn as the mock draws them (chrome.ts): primary (accent) or outlined, one strip of pictures
-    // per area. A list row (an item with `desc`) and a hit row (`h`) stay btns.tsx items.
+    // per area. A list row (an item with `desc`) and a hit row (`cells`) stay btns.tsx items.
     const btns = (key: string, items: BtnItem[], dir: BtnsProps['dir'] = 'row', grow = false) => {
-      if (items.every(it => it.desc === undefined && it.h === undefined)) {
+      if (items.every(it => it.desc === undefined && it.cells === undefined)) {
         const words = (it: BtnItem) => (it.selected ? `✓ ${it.label}` : it.primary ? `▸ ${it.label}` : it.label)
         return strip(key, items.map(it => ({ pic: btnSvg(words(it), !!it.primary || !!it.selected), key: it.key, alt: words(it), words: words(it) })))
       }
       const props: BtnsProps = { items, dir, colors: { ink: P.ink, dim: P.dim, accent: ACCENT, glow: BTN_GLOW }, ...tinted('btns') }
       clientEls += btnsElements(props)
-      const client = <Client key={key} module="./btns.tsx" props={props} />
-      return grow ? <Box key={`wrap-${key}`} width={0} flexGrow={1} overflow="hidden">{client}</Box> : client
+      return grow
+        ? <Box key={`wrap-${key}`} width={0} flexGrow={1} overflow="hidden"><Client key={key} module="./btns.tsx" props={props} /></Box>
+        : <Client key={key} module="./btns.tsx" props={props} />
     }
     // A and R (and D) as hidden pane Buttons: plain, invisible, in a Box of no width. Each runs the same action as the
     // button it names, looked up when pressed; one per key, as `keyed` gives them.
@@ -2759,12 +2760,12 @@ export const register: Register = (on, options) => {
       }
       // The placeholder: an outlined box with its words, a few hundred characters (`pad` px of gap drawn right of it), in
       // the row's ink (BUBBLE_INK on a bubble's light tint, P.dim above the field), so it reads on either.
-      const hold = { w: Math.ceil(textW(t('img.hold'), 'w400', 12)) + 20, h: 24 }
-      const holdSvg = (pad: number, ink: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${hold.w + pad} ${hold.h}" width="${hold.w + pad}" height="${hold.h}"><rect x="0.5" y="0.5" width="${hold.w - 1}" height="${hold.h - 1}" rx="5" fill="none" stroke="${ink}" stroke-opacity="0.5"/><text x="${hold.w / 2}" y="16" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="12" fill="${ink}">${t('img.hold')}</text></svg>`
+      const hold = { w: Math.ceil(textW(t('img.hold'), 'w400', 12)) + 20, ht: 24 }
+      const holdSvg = (pad: number, ink: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${hold.w + pad} ${hold.ht}" width="${hold.w + pad}" height="${hold.ht}"><rect x="0.5" y="0.5" width="${hold.w - 1}" height="${hold.ht - 1}" rx="5" fill="none" stroke="${ink}" stroke-opacity="0.5"/><text x="${hold.w / 2}" y="16" text-anchor="middle" font-family="-apple-system, system-ui, sans-serif" font-size="12" fill="${ink}">${t('img.hold')}</text></svg>`
       // `pad`: blank px drawn right of the picture (shown `shownW` px wide), the gap to the next one in its line.
-      const picSvg = (p: { file: string; w: number; h: number }, pad = 0, shownW = p.w) => {
-        const vw = p.w + (pad * p.w) / shownW
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vw} ${p.h}" width="${vw}" height="${p.h}"><image href="data:image/jpeg;base64,${picCache.get(p.file)}" width="${p.w}" height="${p.h}"/></svg>`
+      const picSvg = (file: string, w: number, ht: number, pad = 0, shownW = w) => {
+        const vw = w + (pad * w) / shownW
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vw} ${ht}" width="${vw}" height="${ht}"><image href="data:image/jpeg;base64,${picCache.get(file)}" width="${w}" height="${ht}"/></svg>`
       }
       // Pictures in lines, each at most `most` px wide and PIC_H tall; a click on one opens the zoom. A line's clicks are
       // ONE band Client on its middle text row (bandhits.tsx, the strip's layer), shared by its pictures: a pane Button
@@ -2773,15 +2774,15 @@ export const register: Register = (on, options) => {
       // shown twice in one row is drawn once (unique keys).
       // Lines break at an estimate of the conversation's width.
       // shortcut: the room is a share of the pane's width, not the bubble's measured one; measure it if lines overflow.
-      type RowPic = { file: string; w: number; h: number; orig?: string }
+      type RowPic = ChatPic
       const picLines = (list: readonly RowPic[], most: number) => {
-        const room = Math.max(most, Math.floor(mapPx(columns) * 0.6) - 60), lines: { p: RowPic; w: number; h: number }[][] = []
+        const room = Math.max(most, Math.floor(mapPx(columns) * 0.6) - 60), lines: { p: RowPic; w: number; ht: number }[][] = []
         let wide = Infinity
         for (const [i, p] of list.entries()) {
           if (!picCache.get(p.file) || list.findIndex(q => q.file === p.file) < i) continue
-          const w = !pictured.has(p.file) ? hold.w : Math.max(1, Math.round(Math.min(p.w, most, (p.w * PIC_H) / Math.max(1, p.h)))), ht = !pictured.has(p.file) ? hold.h : Math.round((p.h * w) / Math.max(1, p.w))
+          const w = !pictured.has(p.file) ? hold.w : Math.max(1, Math.round(Math.min(p.w, most, (p.w * PIC_H) / Math.max(1, picHt(p))))), ht = !pictured.has(p.file) ? hold.ht : Math.round((picHt(p) * w) / Math.max(1, p.w))
           if (wide + w > room) { lines.push([]); wide = 0 }
-          lines.at(-1)!.push({ p, w, h: ht }); wide += w + PIC_GAP
+          lines.at(-1)!.push({ p, w, ht }); wide += w + PIC_GAP
         }
         return lines
       }
@@ -2797,7 +2798,7 @@ export const register: Register = (on, options) => {
         return (
           <Box key={key} flexDirection="column" gap="xs">
             {lines.map((line, li) => {
-              const pad = (i: number) => (i < line.length - 1 ? PIC_GAP : 0), pic = (i: number, p: RowPic, w: number) => <Svg key={`pic-${p.file}`} source={pictured.has(p.file) ? picSvg(p, pad(i), w) : holdSvg(pad(i), ink)} alt={pictured.has(p.file) ? t('img.ofMessage') : t('img.hold')} width={w + pad(i)} />
+              const pad = (i: number) => (i < line.length - 1 ? PIC_GAP : 0), pic = (i: number, p: RowPic, w: number) => <Svg key={`pic-${p.file}`} source={pictured.has(p.file) ? picSvg(p.file, p.w, picHt(p), pad(i), w) : holdSvg(pad(i), ink)} alt={pictured.has(p.file) ? t('img.ofMessage') : t('img.hold')} width={w + pad(i)} />
               if (li < lines.length - hits) { // past the budget (a row's last lines are its newest): a pane Button per picture, as before
                 return (
                   <Box key={`${key}-${li}`} flexDirection="row" alignItems="flex-start" alignSelf="flex-start" flexShrink={0}>
@@ -2806,7 +2807,7 @@ export const register: Register = (on, options) => {
                 )
               }
               const runs = line.flatMap(({ p, w }, i): [number, string | null][] => (pad(i) ? [[w, `pic-open-${p.file}`], [pad(i), null]] : [[w, `pic-open-${p.file}`]]))
-              const rows = Math.max(1, Math.round(Math.max(...line.map(x => x.h)) / 21))
+              const rows = Math.max(1, Math.round(Math.max(...line.map(x => x.ht)) / 21))
               for (const { p } of line) act(client, { k: 'zoom', pic: p }, { key: `pic-open-${p.file}`, label: '' })
               picDrawn++
               return (
@@ -2838,8 +2839,8 @@ export const register: Register = (on, options) => {
           {z && z !== 'loading' && (
             <Box flexDirection="column">
               {z.strips.length
-                ? z.strips.map((b64, i) => <Svg key={`strip-${i}`} source={zoomStrip(z.w, Math.min(STRIP, z.h - i * STRIP), b64)} alt={i ? t('svg.strip', { n: i + 1 }) : t('img.zoomed')} width={z.w} />)
-                : <Svg key="strip-thumb" source={picSvg(z)} alt={t('img.zoomed')} width={2000} />}
+                ? z.strips.map((b64, i) => <Svg key={`strip-${i}`} source={zoomStrip(z.w, Math.min(STRIP, z.ht - i * STRIP), b64)} alt={i ? t('svg.strip', { n: i + 1 }) : t('img.zoomed')} width={z.w} />)
+                : <Svg key="strip-thumb" source={picSvg(z.file, z.w, z.ht)} alt={t('img.zoomed')} width={2000} />}
             </Box>
           )}
           {z && z !== 'loading' && !z.strips.length && tx(t('img.small'), { dim: true, size: 'footnote' })}
@@ -2982,7 +2983,7 @@ export const register: Register = (on, options) => {
       // reply says to answer it in the detail card.
       // The card keeps to the corner: about 45% of the map's height, 260 px at most (maxH, spent reply by reply); what does
       // not fit is "+N más".
-      type NoteBtn = { i: number; act: PillRect['act']; r: { x: number; y: number; w: number; h: number } }
+      type NoteBtn = { i: number; act: PillRect['act']; r: { x: number; y: number; w: number; ht: number } }
       const notesTitle = t(deskNotes.some(x => 'q' in x || 'p' in x) ? 'notes.titleMixed' : 'notes.title')
       const notesCardSvg = () => {
         const one = new Set(deskNotes.map(n => n.d.id)).size === 1, v = viewOf(view.rows ?? 1)
@@ -3001,10 +3002,10 @@ export const register: Register = (on, options) => {
                   return { label: r.label, line, detail: t('notes.inDetail', { label: r.label }) }
                 }), ...(chatUrl(x.d.local) ? { chat: t('notes.openChat') } : {}) }
             : { office: one ? null : x.d.name, title: x.o.title, brief: x.o.brief, ...(elsewhere.has(x.o.id) && chatUrl(x.d.local) ? { chat: t('notes.openChat') } : {}) }),
-          more: n => t('fam.more', { n }), start: t('notes.start'), dismiss: t('q.dismiss'), maxH: Math.min(0.45 * v.h * k, 260),
+          more: n => t('fam.more', { n }), start: t('notes.start'), dismiss: t('q.dismiss'), maxH: Math.min(0.45 * v.ht * k, 260),
         })
-        const btn: NoteBtn[] = c.pills.map(p => ({ i: p.i, act: p.act, r: { x: p.x / k, y: p.y / k, w: p.w / k, h: p.h / k } }))
-        const px = (r: NoteBtn['r']) => ({ x: r.x / k, y: r.y / k, w: r.w / k, h: r.h / k })
+        const btn: NoteBtn[] = c.pills.map(p => ({ i: p.i, act: p.act, r: { x: p.x / k, y: p.y / k, w: p.w / k, ht: p.ht / k } }))
+        const px = (r: NoteBtn['r']) => ({ x: r.x / k, y: r.y / k, w: r.w / k, ht: r.ht / k })
         return { W: c.W / k, H: c.H / k, btn, close: px(c.close), face: px(c.face), body: `<g transform="scale(${1 / k})">${c.body}</g>` }
       }
       const cards: { id: string; alt: string; at: [number, number, number]; card: () => { W: number; H: number; body: string; btn?: NoteBtn[]; close?: NoteBtn['r']; face?: NoteBtn['r'] } }[] = [
@@ -3192,8 +3193,8 @@ export const register: Register = (on, options) => {
                   // The list behind the flag `list-hit-layer`: drawn here as today (stripe, face, the name and its line
                   // as pane Text, the rounded card of the selected row), in a Box laid absolute BEFORE one in-flow
                   // Client, `btns-pick`, of invisible hit rows on top (mod-clicks 3): a click lands on the Client,
-                  // whatever the number of sessions. One `rows` array feeds both sides, each row the same `h` in cells,
-                  // and no gap between rows on either side (the spacing is inside `h`). Past CLIENT_MAX on every other
+                  // whatever the number of sessions. One `rows` array feeds both sides, each row the same `cells` tall,
+                  // and no gap between rows on either side (the spacing is inside `cells`). Past CLIENT_MAX on every other
                   // step, the hit rows become pane Buttons (paneList).
                   // Past LIST_MAX rows the list pages: LIST_MAX rows a page (the selected one always drawn too), and a
                   // last item, "Siguientes sesiones", goes to the next page, or "Volver a las primeras sesiones" back.
@@ -3208,16 +3209,16 @@ export const register: Register = (on, options) => {
                   // A pressable label drawn as today's plain Button; the hit row over it takes the click, and a press
                   // that reaches it anyway runs the same act.
                   const more = (key: string, a: Act, label: string): { it: BtnItem; el: JSX.Element } => ({
-                    it: act('btns-pick', a, { key, label: '', h: MORE_H }),
+                    it: act('btns-pick', a, { key, label: '', cells: MORE_H }),
                     el: <Button key={`${key}-label`} plain onPress={() => pressed($, 'btns-pick', key)}>{label}</Button>,
                   })
                   const rows = groups.flatMap(([gid, list, open, cutOff]): { it: BtnItem; el: JSX.Element }[] => [
-                    { it: { key: `head-${gid}`, label: '', head: true, h: HEAD_H },
+                    { it: { key: `head-${gid}`, label: '', head: true, cells: HEAD_H },
                       el: <Box flexDirection="row" gap="xs">{tx(t(`list.${gid}`).toUpperCase(), { dim: true, size: 'caption', bold: true })}{tx(String(list.length), { size: 'caption', bold: true })}</Box> },
                     ...famDepths(open.filter(d => d.id === dept?.id || Math.floor(seen++ / LIST_MAX) === page)).map(([d, depth]) => {
                       const c = leadOf(d), stt = stateOf(d), sugg = suggestsIn(d), under = depth > 0, { label, desc } = rowText(d, depth), chat = chatOf('btns-pick', d)
                       return {
-                        it: act('btns-pick', { k: 'pick', id: chiefOf(d)?.id ?? `${d.id}-jefe` }, { key: `pick-${d.id}`, label: '', h: ROW_H, ...chat }),
+                        it: act('btns-pick', { k: 'pick', id: chiefOf(d)?.id ?? `${d.id}-jefe` }, { key: `pick-${d.id}`, label: '', cells: ROW_H, ...chat }),
                         el: (
                           <Box key={`item-${d.id}`} flexDirection="row" gap="xs" alignItems="center" overflow="hidden" paddingLeft="xs" paddingRight="xs" paddingY="xs" borderStyle="round" borderColor={d.id === dept?.id ? P.line : P.bg} backgroundColor={d.id === dept?.id ? P.sel : undefined}>
                             {under && <Box key={`indent-${d.id}`} width={INDENT * Math.min(depth, 3)} flexShrink={0} />}
@@ -3246,7 +3247,7 @@ export const register: Register = (on, options) => {
                             Its column is the card's two lines (a bold line over a footnote one), centred in the row as the
                             card is, so the ↗ sits on the name line. */}
                         {rows.map(r => (
-                          <Box key={`li-${r.it.key}`} position="relative" height={r.it.h} flexShrink={0} flexDirection="column" justifyContent={r.it.head ? 'flex-end' : 'center'} overflow="hidden">
+                          <Box key={`li-${r.it.key}`} position="relative" height={r.it.cells} flexShrink={0} flexDirection="column" justifyContent={r.it.head ? 'flex-end' : 'center'} overflow="hidden">
                             {r.el}
                             {r.it.chat && (
                               <Box key={`chatmark-${r.it.key}`} position="absolute" top={0} bottom={0} right={0} width={CHAT_W} flexDirection="column" justifyContent="center" alignItems="center">
@@ -3362,7 +3363,7 @@ export const register: Register = (on, options) => {
                         return (
                           <Box key={`facechat-${dept.id}`} position="relative" width={FACE_W} flexShrink={0} flexDirection="column">
                             <Box position="absolute" top={0} bottom={0} left={0} flexDirection="column" justifyContent="center">{face(who.role, who.id, 46, agentName(who.id))}</Box>
-                            {btns(fk, [act(fk, { k: 'openChat', dept: dept.id }, { key: 'face-chat', label: '', h: FACE_H })], 'column')}
+                            {btns(fk, [act(fk, { k: 'openChat', dept: dept.id }, { key: 'face-chat', label: '', cells: FACE_H })], 'column')}
                           </Box>
                         )
                       })()}

@@ -54,7 +54,7 @@ test('blocker 3: with the banner a tall bubble stays inside the stage, on its si
     const v = oneRow(n), tg = tourTargets(v, NOW)
     for (const lang of LANGS) {
       const r = tourOverlay({ step: 'despacho', n: 8, total: 11, lang, view: viewOf(rowsOf(v)), target: tg.despacho, demoBanner: true })
-      expect([n, lang, r.card![3] <= 0.97, r.card![1] >= 87 / viewOf(rowsOf(v)).h]).toEqual([n, lang, true, true]) // under the banner
+      expect([n, lang, r.card![3] <= 0.97, r.card![1] >= 87 / viewOf(rowsOf(v)).ht]).toEqual([n, lang, true, true]) // under the banner
     }
   }
 })
@@ -64,7 +64,7 @@ test('AG: the chat step lights its own sample row at the bottom-left; the bubble
   for (const view of views) for (const lang of LANGS) {
     const r = tourOverlay({ step: 'chat', n: 9, total: 12, lang, view, target: null, name: 'Oficina 0' })
     const row = r.svg.match(/<div style="position:absolute;left:(\d+)px;top:([\d.]+)px;width:([\d.]+)px;height:(\d+)px/)!.slice(1).map(Number) as [number, number, number, number]
-    const tg: TourRect = [row[0] / view.w, row[1] / view.h, (row[0] + row[2]) / view.w, (row[1] + row[3]) / view.h]
+    const tg: TourRect = [row[0] / view.w, row[1] / view.ht, (row[0] + row[2]) / view.w, (row[1] + row[3]) / view.ht]
     expect([lang, cuts(r.card!, tg), r.card![1] >= 0.1, r.card![3] <= 0.97, tg[0] < 0.1, tg[3] <= 1]).toEqual([lang, false, true, true, true, true])
     expect([r.svg.includes('Oficina 0'), r.svg.includes('↗'), r.alt.includes(lang === 'es' ? 'Ir al chat' : 'Go to a chat')]).toEqual([true, true, true])
     expect(r.svg.length < 131072 && !r.svg.includes(String.fromCharCode(0x2014))).toBe(true)

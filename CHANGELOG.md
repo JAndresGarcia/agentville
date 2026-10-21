@@ -5,6 +5,17 @@ and versions follow [Semantic Versioning](https://semver.org/). How a release is
 
 ## Unreleased
 
+## 1.1.1 - 2026-10-21
+
+For Anthropic's plugin directory checks. Nothing changes in how the panel works, and heartbeat files keep their format.
+
+### Internal
+
+- No name, property or key in a `.tsx` file is `h` (the JSX factory's name): the list's hit rows say `cells`, sizes
+  say `ht`, and a chat picture's height on disk (still `h`, so sessions on older versions read each other's pictures)
+  is read and written through `picHt` and `chatPic` in `beat.ts`. `register` is a plain exported function, and every
+  `Client` element is written out with its module in place.
+
 ## 1.1.0 - 2026-10-21
 
 The panel never approves a permission request. It can reject one, and it takes you to the chat where you approve.

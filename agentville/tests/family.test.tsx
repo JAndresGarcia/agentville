@@ -348,11 +348,11 @@ test('AB2: on, the drawn rows and the hit rows have the same keys, heights and o
   expect([hitRoot.props!.gap, nodesOf(await ui.drawn()).find(n => n.props?.key === 'list-drawn')!.props!.gap]).toEqual([0, undefined]) // no gap on either side
   expect([drawn.length, hits.length]).toEqual([items.length, items.length])
   for (const [i, it] of items.entries()) {
-    expect([it.key, Number.isInteger(it.h)]).toEqual([it.key, true]) // whole cells only: a Client on the desktop drops a fraction
-    expect([drawn[i]!.props!.key, drawn[i]!.props!.height, hits[i]!.props!.key, hits[i]!.props!.height]).toEqual([`li-${it.key}`, it.h, `i-${it.key}`, it.h])
+    expect([it.key, Number.isInteger(it.cells)]).toEqual([it.key, true]) // whole cells only: a Client on the desktop drops a fraction
+    expect([drawn[i]!.props!.key, drawn[i]!.props!.height, hits[i]!.props!.key, hits[i]!.props!.height]).toEqual([`li-${it.key}`, it.cells, `i-${it.key}`, it.cells])
     // a pressable row: one invisible cover Button per cell, all posting its key; a header: none
     const covers = nodesOf(hits[i]).filter(n => n.type === 'Button')
-    expect([it.key, covers.length, covers.every(b => /^\u3164+$/.test(textOf(b)))]).toEqual([it.key, it.head ? 0 : it.h, true])
+    expect([it.key, covers.length, covers.every(b => /^\u3164+$/.test(textOf(b)))]).toEqual([it.key, it.head ? 0 : it.cells, true])
   }
   const top = (k: string, col: N[]) => col.slice(0, col.findIndex(n => String(n.props!.key).endsWith(k))).reduce((y, n) => y + Number(n.props!.height), 0)
   for (const k of ['pick-k1', 'pick-w3', 'pick-w0', 'pick-q3']) expect([k, top(k, drawn)]).toEqual([k, top(k, hits)])
@@ -375,7 +375,7 @@ test('AB2: on, 7 idle sessions: Ver N más is drawn and hit with the same h; a p
   const ui = await openList($)
   const both = async () => {
     const items = await hitItems(ui), drawn = await drawnRows(ui), more = items.find(it => it.key === 'idle-more')
-    return [items.length, drawn.length, more?.h, drawn.find(n => n.props!.key === 'li-idle-more')?.props!.height, textOf(nodesOf(await ui.drawn()).find(n => n.props?.key === 'idle-more-label') ?? {})]
+    return [items.length, drawn.length, more?.cells, drawn.find(n => n.props!.key === 'li-idle-more')?.props!.height, textOf(nodesOf(await ui.drawn()).find(n => n.props?.key === 'idle-more-label') ?? {})]
   }
   await ui.press({ key: 'pick-i0' }) // a selection among the first five: no extra row
   expect(await both()).toEqual([7, 7, 1, 1, 'Ver 2 más']) // a header, 5 rows, the item
@@ -537,7 +537,7 @@ test('AG: the detail header\'s face opens the chat on one press (one Client, who
   await ui.press({ key: 'pick-c1' })
   const zone = nodesOf(await ui.drawn()).find(n => n.props?.key === 'facechat-c1')!
   const items = ((await ui.find({ type: 'Client', key: 'btns-face-c1' }))!.props.props as BtnsProps).items
-  expect([items.map(it => [it.key, it.h]), Number.isInteger(zone.props!.width), nodesOf(zone).some(n => n.type === 'Text')]).toEqual([[['face-chat', 2]], true, false]) // the name is not in it
+  expect([items.map(it => [it.key, it.cells]), Number.isInteger(zone.props!.width), nodesOf(zone).some(n => n.type === 'Text')]).toEqual([[['face-chat', 2]], true, false]) // the name is not in it
   const lines = nodesOf(await ui.drawn({ in: 'btns-face-c1' })).filter(n => n.type === 'Box' && n.props?.height === 1)
   expect(lines.map(n => [n.props!.flexShrink, n.props!.overflow])).toEqual([[0, 'hidden'], [0, 'hidden']])
   await ui.post({ press: 'face-chat' }, { in: 'btns-face-c1' })

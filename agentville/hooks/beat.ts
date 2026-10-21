@@ -13,6 +13,11 @@ export type BeatAgent = { role: AgentvilleRole; kind: string; state: AgentvilleS
 // local: this session's own record id in the Claude app (`local_<uuid>`), from its record: its chat's link.
 // archived: set only by the pane, from the app's record (`isArchived`), never written to a heartbeat: the chat leaves.
 export type Beat = { id: string; name: string; at: number; ended: boolean; agents: Record<string, BeatAgent>; notes: AgentvilleNote[]; steps?: AgentvilleStep[]; bg?: AgentvilleBgTask[]; chat?: AgentvilleChat[]; slot?: number; endReason?: string; usage?: AgentvilleUsage; tools?: Record<string, number>; openSteps?: number; parent?: string; local?: string; ask?: BeatAsk; offers?: BeatOffer[]; mod?: string; syncStuck?: string; metas?: string[]; archived?: true }
+/** A chat picture as heartbeats keep it, `{ file, w, h, orig }` in every version. The .tsx files never name `h` (the
+ * plugin directory reads it as the JSX factory's), so they read and make one only through picHt and chatPic. */
+export type ChatPic = NonNullable<AgentvilleChat['pics']>[number]
+export const picHt = (p: ChatPic) => p.h
+export const chatPic = (file: string, w: number, ht: number, orig?: string): ChatPic => (orig === undefined ? { file, w, h: ht } : { file, w, h: ht, orig })
 /** A reply Claude offered with its question: `text` is sent byte for byte as your prompt; `app` ones are only shown,
  * and `action` names the app action one stands for (only from APP_ACTIONS). */
 export type AskReply = { label: string; text: string; app?: true; action?: AppAction }
