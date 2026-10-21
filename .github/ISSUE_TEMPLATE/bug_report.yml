@@ -1,0 +1,83 @@
+name: Bug report
+description: Something in Agentville does not work as the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A security problem goes to the private form in SECURITY.md, not here.
+        Please remove personal data (project names, paths, tokens) from anything you paste.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a new desktop session
+        2. Type /agentville
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: agentville
+    attributes:
+      label: Agentville version
+      description: The `version` in `agentville/.claude-plugin/plugin.json`, or `claude plugin list`.
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: claude
+    attributes:
+      label: Claude Code version
+      description: >-
+        The Claude Code the desktop app runs: the newest folder in
+        `~/Library/Application Support/Claude/claude-code/`. Agentville needs 2.1.299 or newer.
+        `claude --version` shows the one on your PATH, which may be older.
+      placeholder: 2.1.299
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: macOS version
+      placeholder: macOS 26.3
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - The map
+        - The session list or detail
+        - Messages, approvals or the field
+        - The tour
+        - The team flow
+        - Install or update
+        - Something else
+  - type: dropdown
+    id: palette
+    attributes:
+      label: Palette
+      options:
+        - Warm lobby
+        - Night
+        - Hotel
+        - Not sure
+  - type: dropdown
+    id: lang
+    attributes:
+      label: Panel language
+      options:
+        - English
+        - Spanish
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or logs
+      description: A screenshot of the panel helps most. Check it shows no private project names first.

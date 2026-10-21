@@ -153,16 +153,17 @@ Repository contents:
 
 - `agentville/`: the plugin (the mod's hooks, its agents and skill, tests).
 - `docs/`: these pages.
-- `CHANGELOG.md`: what changed in each version.
+- `CHANGELOG.md`: what changed in each version; [Releasing](releasing.md) says how a version is made.
+- `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `.github/`: how to contribute, and the issue and pull request forms.
 
 Check and test:
 
 ```bash
-claude plugin validate agentville && claude plugin test agentville
+claude plugin validate --strict agentville && claude plugin test agentville
 ```
 
 Publish the public copy from tracked files only, with `git archive` of the commit you publish (for example
-`git archive --format=tar <commit> agentville docs README.md SECURITY.md CHANGELOG.md LICENSE | tar -x -C <empty folder>`),
+`git archive --format=tar <commit> .claude-plugin .github agentville docs README.md SECURITY.md CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE | tar -x -C <empty folder>`),
 never `rsync` or `cp` of a checkout: those carry untracked files such as `node_modules` or generated types. The
 owner's live check comes first.
 

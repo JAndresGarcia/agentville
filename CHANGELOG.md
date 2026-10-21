@@ -1,6 +1,28 @@
 # Changelog
 
+All notable changes to Agentville are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and versions follow [Semantic Versioning](https://semver.org/). How a release is made: [docs/releasing.md](docs/releasing.md).
+
 ## Unreleased
+
+## 1.0.0 - 2026-10-20
+
+First public release.
+
+### Added
+
+- A plugin icon (`agentville/icon.png`, its source `agentville/icon.svg`), named in `plugin.json` for the plugin
+  directory's listing.
+
+### Fixed
+
+- Pixel-font text no longer draws "fi" as "A" ("first" read "Arst" in the tour): ligatures are off wherever Pixelify
+  Sans is used.
+
+### Docs
+
+- README images (logo, map, tour step), CONTRIBUTING.md, CODE_OF_CONDUCT.md, issue and pull request forms and
+  [docs/releasing.md](docs/releasing.md).
 
 ### Security
 
@@ -670,9 +692,10 @@
   the desktop log shows clicks lost there.
 - `CLIENT_MAX` and the meter's limits are estimates, not yet measured on the desktop.
 
-## 1.0.0 - 2026-10-18
+## Preview - 2026-10-18
 
-First public release of Agentville, a pixel-art office for your Claude Code agents, as a Claude Code desktop mod.
+The private preview of Agentville, never tagged (its `plugin.json` already said 1.0.0); 1.0.0 above is the first
+public release. The preview was Agentville, a pixel-art office for your Claude Code agents, as a Claude Code desktop mod.
 
 ### Features
 

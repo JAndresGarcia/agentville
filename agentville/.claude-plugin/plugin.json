@@ -9,6 +9,7 @@
   "homepage": "https://github.com/JAndresGarcia/agentville",
   "repository": "https://github.com/JAndresGarcia/agentville",
   "license": "MIT",
+  "icon": "./icon.png",
   "keywords": [
     "agents",
     "mod",

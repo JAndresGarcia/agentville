@@ -6,6 +6,7 @@ import { isMod } from './sync'
 import { live, t } from './i18n'
 import { esc, textW } from './chrome' // esc drops control characters too: session titles and notes are untrusted
 import { spritePng } from './png'
+import { NO_LIGATURES } from './pixfont'
 
 // The Agentville scene: a pure model (the sessions' heartbeats as a world) and three SVG layers, each under the 131072-char Svg limit.
 
@@ -1093,7 +1094,7 @@ function tapete(ox: number, dy: number, tm: { letter: string; name: string; more
   return {
     key: -2.45,
     s: floorPoly(ox + TAPETE.x0, y, ox + TAPETE.x1, dy + TAPETE.dy1, 'rgba(255,255,255,0.55)') + floorPoly(ox + TAPETE.x0, y, ox + TAPETE.x1, y + 0.06, ink) + floorPoly(ox + TAPETE.x0, dy + TAPETE.dy1 - 0.06, ox + TAPETE.x1, dy + TAPETE.dy1, ink)
-      + `<text transform="matrix(1 0.5 -1 0.5 ${n(X)} ${n(Y)})" font-family='${PIXEL}' font-size="${TAPETE.size}" font-weight="700" fill="rgba(20,34,62,0.7)" stroke="none"${fits ? '' : ` textLength="${n(room)}" lengthAdjust="spacingAndGlyphs"`}>${esc(label)}</text>`,
+      + `<text transform="matrix(1 0.5 -1 0.5 ${n(X)} ${n(Y)})" font-family='${PIXEL}' style='${NO_LIGATURES}' font-size="${TAPETE.size}" font-weight="700" fill="rgba(20,34,62,0.7)" stroke="none"${fits ? '' : ` textLength="${n(room)}" lengthAdjust="spacingAndGlyphs"`}>${esc(label)}</text>`,
   }
 }
 // Producto's people round its meeting table (static, no clicks): where each sits, facing which way, its name, its look.

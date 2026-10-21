@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="agentville/icon.png" width="128" height="128" alt="Agentville icon: a pixel-art Lead at a desk with a laptop">
+  <img src="docs/images/logo.png" width="456" height="100" alt="Agentville logo: Gem, the Secretary, in her blue cap and pink shirt beside the word Agentville in pixel letters">
+</p>
+
 # Agentville
 
 Agentville is a pixel-art office for your Claude Code agents, as a Claude Code desktop mod. Each session is an office
@@ -7,7 +12,7 @@ message every session. The plugin id is `agentville@jandresgarcia`.
 
 The panel speaks English or Spanish: pick the language in the tour's first step, or with `/agentville lang es|en`.
 
-<!-- Picture of the map: add a screenshot or GIF here before publishing. -->
+<img src="docs/images/map.png" width="612" alt="The Agentville map with demo data: four offices with their teams at their desks, the common area with resting agents, the Product room, and your desk where two agents wait in line for your OK beside Gem, the Secretary">
 
 ## Requirements
 
@@ -48,6 +53,8 @@ The shell install asks nothing: no team flow is on until you pick one in the tou
    "One of my skills" or "No team flow".
 5. The step "Where it opens" sets "Always open", which opens the panel in every
    session.
+
+<img src="docs/images/tour-step.png" width="612" alt="A tour step over the map: Gem explains that agents who need your OK stop at her desk first, while an amber banner shows one waiting request and your desk is outlined">
 
 The Tour button in the panel's header runs the tour again. More in
 [Using the panel](docs/using-the-panel.md).
@@ -154,14 +161,30 @@ Blank panel: `/agentville lite` opens it without the map; `/reload-plugins` redr
 - [Troubleshooting](docs/troubleshooting.md): blank panel, the panel going light, known limits, calibration.
 - [Privacy and files](docs/privacy-and-files.md): what it reads, writes and runs.
 - [Security](SECURITY.md): what the mod can do, known limits, how to report an issue.
+- [Releasing](docs/releasing.md): version numbers, how a release is made, how to update.
 
 ## Develop
 
 ```bash
-claude plugin validate agentville && claude plugin test agentville
+claude plugin validate --strict agentville && claude plugin test agentville
 ```
 
 More in [Develop](docs/install-and-update.md#develop).
+
+## Contributing
+
+Issues and pull requests are welcome. Report a bug or ask for a feature with the
+[issue forms](https://github.com/JAndresGarcia/agentville/issues/new/choose), and read
+[CONTRIBUTING.md](CONTRIBUTING.md) before a pull request: how to run the tests, the style, the two-language text and
+the security rules. Report a security issue privately, as [SECURITY.md](SECURITY.md#reporting-an-issue) says, never in
+a public issue. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Versioning
+
+Agentville follows [Semantic Versioning](https://semver.org/). Each release is a `vX.Y.Z` tag with a GitHub release,
+and [CHANGELOG.md](CHANGELOG.md) lists what changed in each version. To update, see
+[Update, uninstall, blank panel](#update-uninstall-blank-panel); how a release is made:
+[Releasing](docs/releasing.md).
 
 ## License
 

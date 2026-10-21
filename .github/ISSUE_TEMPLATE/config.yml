@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security issue privately
+    url: https://github.com/JAndresGarcia/agentville/security/advisories/new
+    about: Please do not open a public issue for a security problem. Report it privately, as SECURITY.md says.
+  - name: Read the docs
+    url: https://github.com/JAndresGarcia/agentville/blob/main/docs/troubleshooting.md
+    about: A blank panel, a panel that went light and other known limits are covered in Troubleshooting.

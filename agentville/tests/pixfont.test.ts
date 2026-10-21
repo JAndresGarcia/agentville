@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { PIXELIFY_WOFF2, PLEX_WOFF2, fontFaceCss } from '../hooks/pixfont'
+import { NO_LIGATURES, PIXELIFY_WOFF2, PLEX_WOFF2, fontFaceCss } from '../hooks/pixfont'
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 // The first 4 bytes from the first 8 base64 chars, without atob/Buffer (the plugin lib has neither).
@@ -24,4 +24,13 @@ test('fontFaceCss: one rule per family, with the weights asked for', () => {
   const both = fontFaceCss(['pix400', 'pix700', 'plex'])
   expect([count(both), both.includes('font-weight:400 700;'), both.includes('"IBM Plex Sans"'), both.includes(PLEX_WOFF2)]).toEqual([2, true, true, true])
   expect(fontFaceCss([])).toBe('')
+})
+
+// Pixelify's "fi" ligature points at the wrong glyph: "first" drew as "Arst" in the tour.
+test('fontFaceCss turns ligatures off wherever Pixelify is embedded, past a later font shorthand', () => {
+  for (const css of [fontFaceCss(['pix400']), fontFaceCss(['pix700', 'plex'])]) {
+    expect(css.includes('*{font-variant-ligatures:none!important;font-feature-settings:"liga" 0,"clig" 0!important;}')).toBe(true)
+  }
+  expect(fontFaceCss(['plex']).includes('ligatures')).toBe(false)
+  expect(NO_LIGATURES).toBe('font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0')
 })
