@@ -1445,69 +1445,8 @@ export function register(on, options) {
     return { ...r, sections: [...r.sections, ...(text ? [{ id: 'agentville:team-flow', text, scope: 'session' as const }] : []), { id: 'agentville:relay', text: RELAY_RULE, scope: 'session' as const }] }
   })
 
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('session.start', async ($, e, next) => {
-    // Refused when the person keeps a user /agentville (the plain name in the menu); this hook still answers it.
-    await useLang($)
-    await $.command.register({ name: 'agentville', description: t('cmd.description') }).catch(() => {})
-    const now = await $.clock.now()
-    // A session that ended in this module (/clear, a resume) starts a heartbeat of its own: the old one stays ended.
-    if (beat?.ended) { beat = null; starting = null }
-    await flowNow($, option).catch(() => {}) // the old-install check runs before any pane order can make a key
-    await ensureBeat($)
-    hasSips = (await $.fs.stat(SIPS).catch(() => null))?.kind === 'file'
-    if (beat) await tidy($, now, beat.id)
-    void readMetas($).catch(() => {}) // never holds the session's start
-    await retitle($)
-    void relink($).catch(() => {})
-    // session.start also fires on every hot reload: a pane that stayed open must be drawn again by the new module,
-    // and the heartbeat reader (a module variable) must start again.
-    await ensurePane($, true)
 
-    return next(e)
-  })
 
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('session.attach', async ($, e, next) => {
-    const r = await next(e)
-    await ensurePane($, true).catch(() => {})
-
-    return r
-  })
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('ui.close', async ($, e, next) => {
-    try {
-      if (e.id === PANE) { // nobody reads the heartbeats for it, and no session holds a request for it ($.fs has no delete)
-        stopTicking()
-        await $.process.run(['/bin/rm', '-f', viewerFile(await home($))]).catch(() => null)
-      }
-      if (e.id === PANE && e.origin.kind === 'person') { // you closed it here: it stays closed here
-        await $.store.delete(await flag($, 'open'))
-        await $.store.set(await flag($, 'closed'), true)
-      }
-    } catch { /* a failure here still passes the close on, once */ }
-
-    return next(e)
-  })
-
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('session.end', async ($, e, next) => {
-    listener?.cancel()
-    listener = null
-    // Asleep or gone: everyone's desk goes quiet; the reason says whether the island stays (see isLive).
-    await mark($, (b, now) => {
-      b.ended = true
-      b.endReason = e.reason
-      if (openOf(b) > 0) b.openSteps = openOf(b) // the plan it leaves open, said in the list
-      for (const key of Object.keys(b.agents)) setAgent(b, key, now, { state: 'inactivo', activity: t('act.asleepMain'), cmd: null, req: null })
-      // Its suggested sessions leave with the question; the app's own cards stay.
-      delete b.ask
-      delete b.offers
-    })
-    await saving
-
-    return next(e)
-  })
 
   // Classic events carry the transcript's path; the title is read from it.
 
