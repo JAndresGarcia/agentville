@@ -1468,6 +1468,3 @@ export function register(on, options) {
 
 }
 
-// register's shape against the engine's Register type (a type only: nothing names register at run time).
-type RegisterShape<R extends Register> = R
-type RegisterChecked = RegisterShape<typeof register>
