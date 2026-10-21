@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, PluginOptions, UiCopyArgs } from 'claude-code'
+import type { EngineInterface, Register, UiCopyArgs, UiCopyResult, UiPressArgument } from 'claude-code'
 import type { AgentvilleChat, AgentvilleDept, AgentvilleReply, AgentvilleUsage, AgentvilleWorld } from '../types'
 import { CMD_MAX, DISMISS, cmdTitle, isHiddenCmd, isImg, isToolCall, MAIN, METAS_MAX, SLEEP_MS, asksFrom, pressTitle, closedOk, closingsFrom, fillTextOf, isIdle, addSaid, addStep, asCommand, guardedCommand, guardedPath, HOLD_MS, isCutCmd, isMaskedCmd, trusted, TASK, offerOrderOk, beatsDir, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, commandsFile, controlFile, doing, endStep, isTaskList, metasOf, newBeat, notesFrom, openOf, pending, pushChat, roleOf, setAgent, titleFrom, viewerFile, OFFER_TTL, REFUSED, asksOfTranscript, asPrompt, signOf, chatPic, picHt } from './beat'
 import type { Beat, ChatPic, Cmd, CmdRow, ImgRef, Closing } from './beat'
@@ -1431,14 +1431,20 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
   return !!c
 }
 
-export function register(on: On, options: PluginOptions) {
+// shortcut: register's parameters carry no types (the plugin directory reads `export function register(on, options)`
+// plainly), so `on` is any and each hook's parameters are untyped (@ts-expect-error per hook); retype them should the
+// directory accept annotated parameters. RegisterChecked at the end still checks register against Register.
+// @ts-expect-error untyped on purpose, see above
+export function register(on, options) {
   const option = (options as { team_flow?: string } | undefined)?.team_flow
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
     const text = flowRule(await flowNow($, option))
     return { ...r, sections: [...r.sections, ...(text ? [{ id: 'agentville:team-flow', text, scope: 'session' as const }] : []), { id: 'agentville:relay', text: RELAY_RULE, scope: 'session' as const }] }
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.start', async ($, e, next) => {
     // Refused when the person keeps a user /agentville (the plain name in the menu); this hook still answers it.
     await useLang($)
@@ -1460,25 +1466,30 @@ export function register(on: On, options: PluginOptions) {
     return next(e)
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.attach', async ($, e, next) => {
     const r = await next(e)
     await ensurePane($, true).catch(() => {})
 
     return r
   })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.close', async ($, e, next) => {
-    if (e.id === PANE) { // nobody reads the heartbeats for it, and no session holds a request for it ($.fs has no delete)
-      stopTicking()
-      await $.process.run(['/bin/rm', '-f', viewerFile(await home($))]).catch(() => null)
-    }
-    if (e.id === PANE && e.origin.kind === 'person') { // you closed it here: it stays closed here
-      await $.store.delete(await flag($, 'open'))
-      await $.store.set(await flag($, 'closed'), true)
-    }
+    try {
+      if (e.id === PANE) { // nobody reads the heartbeats for it, and no session holds a request for it ($.fs has no delete)
+        stopTicking()
+        await $.process.run(['/bin/rm', '-f', viewerFile(await home($))]).catch(() => null)
+      }
+      if (e.id === PANE && e.origin.kind === 'person') { // you closed it here: it stays closed here
+        await $.store.delete(await flag($, 'open'))
+        await $.store.set(await flag($, 'closed'), true)
+      }
+    } catch { /* a failure here still passes the close on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.end', async ($, e, next) => {
     listener?.cancel()
     listener = null
@@ -1498,21 +1509,28 @@ export function register(on: On, options: PluginOptions) {
   })
 
   // Classic events carry the transcript's path; the title is read from it.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('classic.SessionStart', async ($, e, next) => {
-    transcript = e.transcript_path
-    void retitle($).catch(() => {})
+    try {
+      transcript = e.transcript_path
+      void retitle($).catch(() => {})
+    } catch { /* a failure here still passes the event on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('classic.UserPromptSubmit', async ($, e, next) => {
-    transcript = e.transcript_path
-    void retitle($).catch(() => {})
-    void relink($).catch(() => {})
+    try {
+      transcript = e.transcript_path
+      void retitle($).catch(() => {})
+      void relink($).catch(() => {})
+    } catch { /* a failure here still passes the prompt on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
 
   // What each agent does, from the session's own events. These only observe: they return `next`'s answer.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('turn.start', async ($, e, next) => {
     if (!e.agentId) mainTurn = e.turnId
     await mark($, (b, now) => {
@@ -1522,6 +1540,7 @@ export function register(on: On, options: PluginOptions) {
 
     return next(e)
   })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('turn.complete', async ($, e, next) => {
     const done = () => (e.reason === 'error' ? { state: 'error' as const, activity: t('act.turnFailed') }
       : e.isAborted ? { state: 'inactivo' as const, activity: t('act.stopped') }
@@ -1542,88 +1561,109 @@ export function register(on: On, options: PluginOptions) {
     return next(e)
   })
   // Every row of the main conversation passes here as it is kept: Claude's text as it writes it, and your prompts.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('session.append', async ($, e, next) => {
-    const c = chatFrom(e.message)
-    // A subagent's words go to its own desk: selecting it shows them.
-    if (e.agentId) {
-      const key = e.agentId
-      if (c?.who === 'claude' && c.text) await mark($, b => { const ag = b.agents[key]; if (ag) ag.said = addSaid(ag.said, c.text) })
-      return next(e)
-    }
-    // Its question and suggested sessions (wrap_up, start_session and their results); a message you typed (queued too,
-    // never a tool result or an envelope) answers the question.
-    if (beat) {
-      const b = beat, now = await $.clock.now()
-      let changed = asksFrom(b, e.message, now)
-      if (c?.who === 'tú' && b.ask) { delete b.ask; changed = true }
-      if (changed) await mark($, (x, at) => unwait(x, at))
-      // A start or dismiss of any session's suggestion (one withdrawn from here by hand) settles it in every pane.
-      const cl = closingsFrom(e.message)
-      for (const [tu, id, kind] of cl.uses) { if (closing.size >= 50) closing.clear(); closing.set(tu, [id, kind]) }
-      for (const [tu, text] of cl.results) { const c = closing.get(tu); if (c) { closing.delete(tu); if (closedOk(c[1], c[0], text)) await offerDone($, c[0]) } }
-    }
-    // A prompt sent while the session is busy waits in its queue: it shows as queued until it is delivered.
-    if (c && e.door === 'queue') c.queued = true
-    if (c?.who === 'tú') c.at = await $.clock.now() // the pane's outbox drops what it sent once a row of yours is newer
-    if (c) {
-      // A file sent by a relative path is read from the session's folder; thumb takes absolute paths only.
-      const refs = imagesOf(e.message), rel = (r: ImgRef) => 'path' in r && !r.path.startsWith('/')
-      const cwd = refs.some(rel) ? await $.session.cwd().catch(() => '') : '' // no cwd: the relative ref stays relative and thumb refuses it
-      const pics = (await Promise.all(refs.map(r => thumb($, rel(r) && cwd ? { path: `${cwd}/${(r as { path: string }).path}` } : r)))).filter(x => x !== null)
-      if (pics.length) c.pics = pics
-      await mark($, b => pushChat(b, c))
-    }
+    try {
+      const c = chatFrom(e.message)
+      // A subagent's words go to its own desk: selecting it shows them.
+      if (e.agentId) {
+        const key = e.agentId
+        if (c?.who === 'claude' && c.text) await mark($, b => { const ag = b.agents[key]; if (ag) ag.said = addSaid(ag.said, c.text) })
+      } else {
+        // Its question and suggested sessions (wrap_up, start_session and their results); a message you typed (queued too,
+        // never a tool result or an envelope) answers the question.
+        if (beat) {
+          const b = beat, now = await $.clock.now()
+          let changed = asksFrom(b, e.message, now)
+          if (c?.who === 'tú' && b.ask) { delete b.ask; changed = true }
+          if (changed) await mark($, (x, at) => unwait(x, at))
+          // A start or dismiss of any session's suggestion (one withdrawn from here by hand) settles it in every pane.
+          const cl = closingsFrom(e.message)
+          for (const [tu, id, kind] of cl.uses) { if (closing.size >= 50) closing.clear(); closing.set(tu, [id, kind]) }
+          for (const [tu, text] of cl.results) { const c = closing.get(tu); if (c) { closing.delete(tu); if (closedOk(c[1], c[0], text)) await offerDone($, c[0]) } }
+        }
+        // A prompt sent while the session is busy waits in its queue: it shows as queued until it is delivered.
+        if (c && e.door === 'queue') c.queued = true
+        if (c?.who === 'tú') c.at = await $.clock.now() // the pane's outbox drops what it sent once a row of yours is newer
+        if (c) {
+          // A file sent by a relative path is read from the session's folder; thumb takes absolute paths only.
+          const refs = imagesOf(e.message), rel = (r: ImgRef) => 'path' in r && !r.path.startsWith('/')
+          const cwd = refs.some(rel) ? await $.session.cwd().catch(() => '') : '' // no cwd: the relative ref stays relative and thumb refuses it
+          const pics = (await Promise.all(refs.map(r => thumb($, rel(r) && cwd ? { path: `${cwd}/${(r as { path: string }).path}` } : r)))).filter(x => x !== null)
+          if (pics.length) c.pics = pics
+          await mark($, b => pushChat(b, c))
+        }
+      }
+    } catch { /* a failure here still passes the row on, once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e))
+  })
   // A background command's end arrives as a notification prompt; it closes that task on the board.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('prompt.submit', async ($, e, next) => {
-    if (e.text.includes('<task-notification>')) await mark($, b => bgFrom(b, e.text))
+    try {
+      if (e.text.includes('<task-notification>')) await mark($, b => bgFrom(b, e.text))
+    } catch { /* it only observes: a failure here never touches the prompt, which passes on once */ }
 
     return next(e)
-  }).catch(($, e, next) => next(e)) // it only observes: a failure here never touches the prompt
+  })
   // With a team flow on (Agentville's or a skill), every subagent is asked for a plan it keeps current, so its desk shows
   // how far it got (one without the task-list tool still gets an action plan drawn from its steps).
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('agent.spawn', async ($, e, next) => {
     // Only this plugin's agents and the session's own ones (no plugin prefix) get the plan ask; other plugins' agents are
     // left as their plugin wrote them. The secretaria and Producto answer in a fixed shape: no plan ask for them.
-    const own = !e.subagentType.includes(':') || e.subagentType.startsWith('agentville:')
-    const ask = own && !STAFF.test(e.subagentType) && (await flowNow($, option)).kind !== 'none'
-    if (kindOf(e.subagentType) === PROD_KIND) await readMetas($).catch(() => {}) // the board shows the goals it judges by
-    const r = await next(!ask || e.prompt.includes(PLAN_ASK) ? e : { ...e, prompt: e.prompt + PLAN_ASK })
-    if (r.agentId) await mark($, (b, now) => setAgent(b, r.agentId!, now, { role: roleOf(e.subagentType), kind: e.subagentType, state: 'leyendo', activity: e.description, cmd: null, goal: e.description }))
+    let sent = e
+    try {
+      const own = !e.subagentType.includes(':') || e.subagentType.startsWith('agentville:')
+      const ask = own && !STAFF.test(e.subagentType) && (await flowNow($, option)).kind !== 'none'
+      if (kindOf(e.subagentType) === PROD_KIND) await readMetas($).catch(() => {}) // the board shows the goals it judges by
+      sent = !ask || e.prompt.includes(PLAN_ASK) ? e : { ...e, prompt: e.prompt + PLAN_ASK }
+    } catch { /* a failure before next passes the spawn on as it came, once */ }
+    const r = await next(sent)
+    try {
+      if (r.agentId) await mark($, (b, now) => setAgent(b, r.agentId!, now, { role: roleOf(e.subagentType), kind: e.subagentType, state: 'leyendo', activity: e.description, cmd: null, goal: e.description }))
+    } catch { /* next's answer stands */ }
 
     return r
-  }).catch(($, e, next) => next(e))
+  })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('tool.call', async ($, e, next) => {
     // The helpers read a copy (a built-in call carries its arguments at the top level); `e` goes on to next untouched.
-    const seen = { ...e }, key = e.agentId ?? MAIN, d = doing(e.tool, seen)
-    let step = 0
-    await mark($, (b, now) => {
-      setAgent(b, key, now, { state: d.state, activity: d.activity, cmd: null })
-      if (isTaskList(e.tool)) {
-        // A subagent's task list is its own; only the main conversation's is the session's plan.
-        const ag = e.agentId ? b.agents[key] : undefined
-        if (ag) { const own = { notes: ag.notes ?? [] } as Beat; notesFrom(own, seen); ag.notes = own.notes } else { notesFrom(b, seen); delete b.openSteps }
-      }
-      else step = addStep(b, b.agents[key]!.role, d.activity)
-      b.tools = { ...b.tools, [e.tool]: (b.tools?.[e.tool] ?? 0) + 1 }
-    })
-    running.set(key, e.tool)
+    let key: string, d: ReturnType<typeof doing>, step = 0
+    try {
+      const seen = { ...e }
+      key = e.agentId ?? MAIN
+      d = doing(e.tool, seen)
+      await mark($, (b, now) => {
+        setAgent(b, key, now, { state: d.state, activity: d.activity, cmd: null })
+        if (isTaskList(e.tool)) {
+          // A subagent's task list is its own; only the main conversation's is the session's plan.
+          const ag = e.agentId ? b.agents[key] : undefined
+          if (ag) { const own = { notes: ag.notes ?? [] } as Beat; notesFrom(own, seen); ag.notes = own.notes } else { notesFrom(b, seen); delete b.openSteps }
+        }
+        else step = addStep(b, b.agents[key]!.role, d.activity)
+        b.tools = { ...b.tools, [e.tool]: (b.tools?.[e.tool] ?? 0) + 1 }
+      })
+      running.set(key, e.tool)
+    } catch { return next(e) } // a failure before next passes the call on, once; a throw from that next goes up as before
     const r = await next(e).finally(() => running.delete(key)) // runs the permission prompt and the tool
-    const bgId = (r.result as { backgroundTaskId?: string } | undefined)?.backgroundTaskId
-    await mark($, b => {
-      if (step) endStep(b, step, !r.deny && !r.isError)
-      if (bgId) b.bg = [...(b.bg ?? []), { id: bgId, text: d.activity, status: 'corriendo' as const }].slice(-8)
-    })
-    await mark($, (b, now) => setAgent(b, key, now, 'deny' in r && r.deny !== undefined ? { state: 'leyendo', activity: t('act.denied'), cmd: null, tool: undefined, req: null }
-      : r.isError ? { state: 'error', activity: t('act.failed', { what: d.activity }), cmd: null, tool: undefined, req: null } : { state: d.state, activity: d.activity, cmd: null, tool: undefined, req: null }))
+    try {
+      const bgId = (r.result as { backgroundTaskId?: string } | undefined)?.backgroundTaskId
+      await mark($, b => {
+        if (step) endStep(b, step, !r.deny && !r.isError)
+        if (bgId) b.bg = [...(b.bg ?? []), { id: bgId, text: d.activity, status: 'corriendo' as const }].slice(-8)
+      })
+      await mark($, (b, now) => setAgent(b, key, now, 'deny' in r && r.deny !== undefined ? { state: 'leyendo', activity: t('act.denied'), cmd: null, tool: undefined, req: null }
+        : r.isError ? { state: 'error', activity: t('act.failed', { what: d.activity }), cmd: null, tool: undefined, req: null } : { state: d.state, activity: d.activity, cmd: null, tool: undefined, req: null }))
+    } catch { /* next's answer stands */ }
 
     return r
-  }).catch(($, e, next) => next(e))
+  })
   // The tool guard (guardOf) and the pane's hold of a permission request (heldDenied). Each answers only a fixed deny,
   // written here; everything else passes on. Their parameter names are used nowhere else in this file, so the plugin
   // directory can tell which event each passes on. The pane never approves: it rejects, or opens the session's chat.
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('tool.check', async (guardCap, checkEvent, checkNext) => {
     const why = await guardOf(guardCap, checkEvent.tool, checkEvent.input)
     if (why === 'command') return { decision: 'deny', reason: 'The Agentville store holds the key of its mailboxes; commands may not name it.' }
@@ -1632,11 +1672,13 @@ export function register(on: On, options: PluginOptions) {
     if (why === 'failed') return { decision: 'deny', reason: 'Agentville could not check this path; it stays closed.' }
     return checkNext(checkEvent)
   })
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('classic.PermissionRequest', async (holdCap, permEvent, permNext) => {
     if (await heldDenied(holdCap, permEvent.tool_name, permEvent.tool_input).catch(() => false)) return { decision: { behavior: 'deny', message: 'Rejected from Agentville' } }
     return permNext(permEvent)
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('command.run', { command: 'agentville' }, async ($, e) => {
     // English names first, the Spanish ones kept as aliases (AW).
     // `/agentville lang es|en` (or idioma) switches the pane's language and answers in it; it opens no pane.
@@ -1683,6 +1725,7 @@ export function register(on: On, options: PluginOptions) {
   // key pressed: see `pressed`. A key the last drawing did not give does nothing (an agent gone, an office closed).
   // The message field (field.tsx) posts its draft as it changes, a selection to copy, and the text to send on Enter.
   // A pane Button pressed closes an open usage card first, then does its own job (hotkeys go through `pressed`).
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.press', { component: 'Pane', requestId: PANE }, async ($, e, next) => {
     if (clickDiag) { await useLang($); await $.ui.toast(t('diag.press', { el: t('diag.pane'), key: e.element.slice(0, 60), ok: t('diag.matched') })) }
     const close = !!pinnedUse && !e.element.startsWith('hot-') && !inClient(e.element, acts.keys())
@@ -1692,6 +1735,7 @@ export function register(on: On, options: PluginOptions) {
     return done
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.message', async ($, e, next) => {
     const at = await $.clock.now()
     msgTimes = [...msgTimes.filter(x => at - x < METER_MS), at]
@@ -1765,6 +1809,7 @@ export function register(on: On, options: PluginOptions) {
     return done()
   })
 
+  // @ts-expect-error untyped hook parameters: see the shortcut above register
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     // A failing drawing shows its error instead of leaving the pane empty.
     try {
@@ -2415,7 +2460,7 @@ export function register(on: On, options: PluginOptions) {
       // pruned or missing is not kept, and its bubble says so.
       for (const p of shown) {
         // The .txt goes unescaped into an href: base64 only, or it shows as gone.
-        const b64 = picCache.get(p.file) ?? await $.fs.read(`${IMAGES(await home($))}/${p.file}.txt`).then(s => (/^[A-Za-z0-9+/=]*$/.test(s) ? s : '')).catch(() => '')
+        const b64 = picCache.get(p.file) ?? await $.fs.read(`${IMAGES(await home($))}/${p.file}.txt`).then((s: string) => (/^[A-Za-z0-9+/=]*$/.test(s) ? s : '')).catch(() => '')
         picCache.delete(p.file)
         if (b64) picCache.set(p.file, b64)
       }
@@ -2537,7 +2582,7 @@ export function register(on: On, options: PluginOptions) {
             {(fold.cut || !!text.trim()) && (
               <Box flexDirection="row" gap="xs" alignSelf="flex-start">
                 {fold.cut && <Box backgroundColor={BUBBLE_INK} paddingX={1}><Button key={`more-${k}`} plain onPress={() => { noRoom.delete(k); if (open) opened.delete(k); else opened.add(k); $.ui.invalidate('ui.render') }}>{open ? t('chat.less') : t('chat.full')}</Button></Box>}
-                {!!text.trim() && <Box backgroundColor={BUBBLE_INK} paddingX={1}><Button key={`copy-${k}`} plain onPress={(press) => void $.ui.copy({ text, surface: press.surface }).then(r => (r.isCopied ? $.ui.toast(t('toast.copied')) : undefined)).catch(() => {})}>{t('chat.copy')}</Button></Box>}
+                {!!text.trim() && <Box backgroundColor={BUBBLE_INK} paddingX={1}><Button key={`copy-${k}`} plain onPress={(press: UiPressArgument) => void $.ui.copy({ text, surface: press.surface }).then((r: UiCopyResult) => (r.isCopied ? $.ui.toast(t('toast.copied')) : undefined)).catch(() => {})}>{t('chat.copy')}</Button></Box>}
               </Box>
             )}
             {pics.length > 0 && picRow(`pics-${k}`, pics, THUMB, BUBBLE_INK)}
@@ -3270,3 +3315,7 @@ export function register(on: On, options: PluginOptions) {
     }
   })
 }
+
+// register's shape against the engine's Register type (a type only: nothing names register at run time).
+type RegisterShape<R extends Register> = R
+type RegisterChecked = RegisterShape<typeof register>

@@ -528,6 +528,28 @@ for (const hook of ['turn.start', 'tool.call', 'PermissionRequest'] as const) {
   })
 }
 
+// BM H2: tool.call keeps its failure fallback inside the hook. Its body failing before next, or after it, passes the
+// call on exactly once and the tool's answer stands; a failure of next itself still reaches the caller.
+for (const when of ['before next', 'after next', 'in next'] as const) {
+  test(`BM: a tool.call hook that fails ${when} calls next once`, async ($, on) => {
+    mock.clock(on, { now: 100000 })
+    const { env } = serveBeats(on, [])
+    let calls = 0
+    on('tool.call', () => {
+      calls++
+      if (when === 'after next') env.broken = true // the hook's writes after next fail
+      if (when === 'in next') throw new Error('the tool broke')
+      return { result: 'ok' } as never
+    })
+    await startSession($)
+    if (when === 'before next') env.broken = true // the hook's first write fails
+    const call = $.tool.call({ tool: 'Read', file_path: '/x/a.ts' } as never)
+    if (when === 'in next') await expect(call).rejects.toThrow()
+    else expect(await call).toMatchObject({ result: 'ok' })
+    expect(calls).toBe(1)
+  })
+}
+
 test('E-AC2: a main turn that ends with its plan open says how many steps; a new plan, a finished plan or a subagent clears or never sets it', async ($, on) => {
   mock.clock(on, { now: 100000 })
   const { files } = serveBeats(on, [])
