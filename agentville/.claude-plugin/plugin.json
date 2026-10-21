@@ -1,0 +1,33 @@
+{
+  "name": "agentville",
+  "version": "1.0.0",
+  "description": "Agentville: a pixel-art office for your Claude Code agents. Each session is an office; agents walk to your desk when they need your OK.",
+  "author": {
+    "name": "JAndresGarcia",
+    "url": "https://github.com/JAndresGarcia"
+  },
+  "homepage": "https://github.com/JAndresGarcia/agentville",
+  "repository": "https://github.com/JAndresGarcia/agentville",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "mod",
+    "desktop",
+    "pixel-art",
+    "office",
+    "team-flow"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "team_flow": {
+      "type": "string",
+      "title": "How your teams work",
+      "description": "The Agentville team flow, sized to each change's risk: small (1 builder and 1 reviewer), medium (spec, 1 builder and 2 reviewers) or large (or risky), with a spec, builders, four reviewers in parallel and an approver. It merges or opens pull requests only as the repository's rules or you allow, and deploys only when your own instructions or you say so. Or your own skills and agents. Until you choose, no flow runs; you can choose in the tour.",
+      "options": [
+        "Agentville team flow",
+        "My own skills and agents"
+      ],
+      "default": "My own skills and agents"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+.DS_Store
+*.log
+node_modules/
+.claude-plugin/types/
+**/.claude-plugin/types/
+# generated previews (scene checks)
+mod-preview.html
+zones-preview.html
+
+# local design previews, kept on disk
+uso.html
+escala.html
+mando.html
+
+# local agent notes, worktrees and session data: never committed
+/.claude/

@@ -1,0 +1,6 @@
+{
+  "name": "jandresgarcia",
+  "description": "Agentville, a pixel-art office for your Claude Code agents, packaged as a Claude Code desktop mod.",
+  "owner": { "name": "JAndresGarcia" },
+  "plugins": [{ "name": "agentville", "source": "./agentville" }]
+}
