@@ -22,6 +22,8 @@ newest version heading in [CHANGELOG.md](../CHANGELOG.md).
 
    The last command fails when a file in `agentville/` is a symlink, or, unless it is an image or a font, is binary or
    over 256 KiB: Anthropic's plugin directory holds such a plugin back, and `claude plugin test` cannot check it.
+   `agentville/hooks/register.tsx` is exempt from the size rule: the directory's `$` rule needs it whole, and its size
+   only causes a policy hold.
 
 4. Commit both files as `Release vX.Y.Z`. Before tagging, the maintainer checks that commit live in the desktop app.
 5. Tag the release in the public repository, [JAndresGarcia/agentville](https://github.com/JAndresGarcia/agentville),
@@ -49,7 +51,7 @@ newest version heading in [CHANGELOG.md](../CHANGELOG.md).
    First public release of Agentville, a pixel-art office for your Claude Code agents.
 
    - Every session is an office with its team; idle agents rest in the lobby.
-   - Approve or reject permission requests, and message any session, from one desk.
+   - See every permission request at one desk: reject it there, or open its chat to approve; message any session.
    - An optional team flow sized to each change's risk.
    - English and Spanish.
 

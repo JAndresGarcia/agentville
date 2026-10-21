@@ -4,7 +4,7 @@ Back to the [README](../README.md).
 
 The panel writes orders to `~/.claude/agentville/control/<id>.json` and each session reads its own file there every
 1.5 seconds. From the panel you can send a session a message (it arrives as if you typed it), stop its running turn,
-approve or reject a permission request, and start or dismiss a session it suggested (see [Questions and suggested
+reject a permission request (or open its chat to approve it there), and start or dismiss a session it suggested (see [Questions and suggested
 sessions](using-the-panel.md#questions-and-suggested-sessions)).
 
 ## Commands
@@ -46,23 +46,26 @@ is one of its own open suggestions; it never reads anything a model wrote to dec
 
 While a panel is open, a session holds a request for the panel for about 8 seconds (all the time Claude Code gives the
 mod there), then falls back to its own prompt; with no panel open it asks in the session at once; a command or a file
-edit too long to show whole is always answered in the session. Approve allows exactly what the card shows: a
-Bash command in full; any other tool, its full name and each argument (the whole file path, the URL, an MCP tool's
-arguments). If the command changed by the time the session gets your Approve, Approve does nothing and Claude asks
-you in the session. The approval order carries the SHA-256 of the text the card showed, signed with it, and the
-session allows only when it matches the request it holds; a mismatch, or an approval naming no command (an older
-panel), approves nothing and rejects nothing: the session asks you itself, at once, its activity reads "The command
-changed: answer it in the session" and the panel toasts the same. The panel's toast on Approve says the approval was
-sent; "Approved in <session>" follows once the session took it. A request too long to show whole, with a masked part,
-or with hidden characters (bidirectional, zero-width, tag or control characters) gets no Approve and no A key: the
-card says to answer it in the session.
+edit too long to show whole is always answered in the session. The card shows exactly what is asked: a Bash command
+in full; any other tool, its full name and each argument (the whole file path, the URL, an MCP tool's arguments).
 
-A new request the panel can answer toasts once (several at once toast once with their count, "2 sessions ask for
-permission · answer here"; one already past its hold gets no such toast, only
+The panel never approves (since 1.1.0). Reject (key R) sends a signed reject order, and the session answers the
+request with a fixed deny ("Rejected from Agentville"); that is the only answer the session's permission hook gives.
+Approve in chat (key A) sends nothing: it opens the chat where the app asks the request (for a session started from
+another one, the chat that started it) and toasts that you approve it there when Claude asks (up to 8 s, when the
+hold ends); with no chat link known, the toast names the session instead. When the hold ends unanswered, the hook
+passes the request on and Claude's own prompt asks you, where you approve. A request too long to show whole, with a masked part, or with hidden characters
+(bidirectional, zero-width, tag or control characters) gets no buttons and no A or R key: the card says to answer it
+in the session.
+
+A new request the panel can answer toasts once, naming both ways ("<role> · <office> asks permission: reject it here
+within 8 s, or approve it in the chat"; several at once toast once with their count, "2 sessions ask for permission ·
+reject here or approve in the chat"; one already past its hold gets no such toast, only
 "<role> · <office> is waiting for you" when someone starts waiting with it), opens the
-notes card on it (its pill counts the seconds left too and selects who asks, so A and R answer it at once), and marks
-the "N waiting" strip "New". Approve and Reject count the seconds left
-("Approve (6 s)"), and once they run out the card offers no answer and says to answer it in that chat of the app,
+notes card on it (its pill counts the seconds left too and selects who asks, so R rejects it and A opens its chat at
+once), and marks
+the "N waiting" strip "New". Approve in chat and Reject count the seconds left
+("Reject (6 s)"), and once they run out the card offers no answer and says to answer it in that chat of the app,
 where the request shows. The panel trusts no hold end more than 10 seconds after the session started waiting, or after
 now (all the time Claude Code gives the mod). A request the panel can no longer answer (its hold passed, no panel was
 open, or it cannot be shown whole) keeps the whole request on its card and, when the app's chat link is known, offers

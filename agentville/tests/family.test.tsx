@@ -268,7 +268,7 @@ test('Y-A: an archived session leaves the list within a minute, by a find and a 
   for (let i = 0; i < 4; i++) await clock.advance(1000)
   expect(await rows()).toEqual(['btns-pick-a1'])
   expect(finds).toEqual([['/usr/bin/find', RECORDS, '-mindepth', '3', '-maxdepth', '3', '-type', 'f', '(', '-name', `${LOCAL}.json`, '-o', '-name', `${L2}.json`, ')']])
-  expect(heads.filter(h => h.endsWith(`${L2}.json`))).toEqual([`${RECORDS}/ab/ef/${L2}.json`])
+  expect(heads.filter(ht => ht.endsWith(`${L2}.json`))).toEqual([`${RECORDS}/ab/ef/${L2}.json`])
   for (let i = 0; i < 30; i++) await clock.advance(1000)
   expect(finds).toHaveLength(1) // once a minute at most
   records[`ab/ef/${L2}.json`] = rec({ sessionId: L2, cliSessionId: 'z1', big: 'x'.repeat(250000) }) // cut short, no flag: the last answer stays
@@ -352,7 +352,7 @@ test('AB2: on, the drawn rows and the hit rows have the same keys, heights and o
     expect([drawn[i]!.props!.key, drawn[i]!.props!.height, hits[i]!.props!.key, hits[i]!.props!.height]).toEqual([`li-${it.key}`, it.h, `i-${it.key}`, it.h])
     // a pressable row: one invisible cover Button per cell, all posting its key; a header: none
     const covers = nodesOf(hits[i]).filter(n => n.type === 'Button')
-    expect([it.key, covers.length, covers.every(b => /^ㅤ+$/.test(textOf(b)))]).toEqual([it.key, it.head ? 0 : it.h, true])
+    expect([it.key, covers.length, covers.every(b => /^\u3164+$/.test(textOf(b)))]).toEqual([it.key, it.head ? 0 : it.h, true])
   }
   const top = (k: string, col: N[]) => col.slice(0, col.findIndex(n => String(n.props!.key).endsWith(k))).reduce((y, n) => y + Number(n.props!.height), 0)
   for (const k of ['pick-k1', 'pick-w3', 'pick-w0', 'pick-q3']) expect([k, top(k, drawn)]).toEqual([k, top(k, hits)])
@@ -441,7 +441,7 @@ test('Y-B2: a record that names its parent only after 15 minutes still links: no
 test('Y-B2: a parent named but its record not ready spends no try while fresh, then a try a look, 10 at most', async ($, on) => {
   const clock = mock.clock(on, { now: 100000 })
   const { heads, files } = serve(on, [], { [`ab/cd/${LOCAL}.json`]: CHILD_REC, 'ab/cd/local_p-1.json': rec({ sessionId: 'local_p-1' }) })
-  const parentReads = () => heads.filter(h => h.endsWith('/local_p-1.json')).length
+  const parentReads = () => heads.filter(ht => ht.endsWith('/local_p-1.json')).length
   await startSession($); await clock.settle()
   for (let i = 0; i < 6; i++) await clock.advance(60000)
   const fresh = parentReads()

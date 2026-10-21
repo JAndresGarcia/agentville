@@ -52,16 +52,16 @@ export function textW(s: string, table: 'w700' | 'w400' = 'w700', size = 13) {
 // One px of room below what Chrome measured: a box can lay out half a px taller at another scale, and its bottom border
 // must never be cut.
 const ROOM = 1
-const svg = (w: number, h: number, html: string, cls = 'r') =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><style>${CSS}</style><foreignObject x="0" y="0" width="${w}" height="${h}"><div xmlns="http://www.w3.org/1999/xhtml" class="${cls}">${html}</div></foreignObject></svg>`
+const svg = (w: number, ht: number, html: string, cls = 'r') =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${ht}" width="${w}" height="${ht}"><style>${CSS}</style><foreignObject x="0" y="0" width="${w}" height="${ht}"><div xmlns="http://www.w3.org/1999/xhtml" class="${cls}">${html}</div></foreignObject></svg>`
 /** A picture: its Svg, its size in px, and its markup, so a strip (stripSvg) draws it exactly as it draws alone. */
 export type Pic = { svg: string; w: number; h: number; html: string; cls: string }
-const pic = (w: number, h: number, html: string, cls = 'r'): Pic => ({ svg: svg(w, h, html, cls), w, h, html, cls })
+const pic = (w: number, ht: number, html: string, cls = 'r'): Pic => ({ svg: svg(w, ht, html, cls), w, h: ht, html, cls })
 /** Pictures side by side in one Svg, top-aligned, each in a box of its own width and `gap` px after it: their click runs
  * come from the same numbers (register.tsx). */
 export function stripSvg(parts: { p: Pic; gap: number }[]) {
-  const w = parts.reduce((n, x) => n + x.p.w + x.gap, 0), h = Math.max(...parts.map(x => x.p.h))
-  return svg(w, h, parts.map(({ p, gap }) => `<div class="${p.cls}" style="width:${p.w}px;height:${p.h}px;margin-right:${gap}px">${p.html}</div>`).join(''), 'strip')
+  const w = parts.reduce((n, x) => n + x.p.w + x.gap, 0), ht = Math.max(...parts.map(x => x.p.h))
+  return svg(w, ht, parts.map(({ p, gap }) => `<div class="${p.cls}" style="width:${p.w}px;height:${p.h}px;margin-right:${gap}px">${p.html}</div>`).join(''), 'strip')
 }
 
 /** "hace Ns" that counts up by itself (SMIL `set`, no redraw and no timer): how old a drawing's numbers are. `label(s)`
@@ -69,31 +69,31 @@ export function stripSvg(parts: { p: Pic; gap: number }[]) {
  * starts its clock again on each draw. BODY's quotes are escaped: a raw " would end the style attribute. */
 export function ageSvg(label: (s: number) => string, color: string, at: number) {
   const marks = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 45, 60, 120, 300, 600, 1800, 3600]
-  const w = Math.ceil(Math.max(...marks.map(s => textW(label(s), 'w400', 12)))) + 4, h = 16
+  const w = Math.ceil(Math.max(...marks.map(s => textW(label(s), 'w400', 12)))) + 4, ht = 16
   const texts = marks.map((s, i) => `<text x="0" y="12" visibility="hidden">${esc(label(s))}<set attributeName="visibility" to="visible" begin="${s}s"${i + 1 < marks.length ? ` end="${marks[i + 1]}s"` : ''}/></text>`)
-  return { w, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="font:12px ${esc(BODY)};fill:${esc(color)}"><desc>${at}</desc>${texts.join('')}</svg>` }
+  return { w, svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${ht}" width="${w}" height="${ht}" style="font:12px ${esc(BODY)};fill:${esc(color)}"><desc>${at}</desc>${texts.join('')}</svg>` }
 }
 
 /** A button as the mock's .btn (outlined) or .btn.primary (accent): an Svg just as wide as it draws. `half`: one half of
  * a segmented control, its inner corners square, so two drawn side by side touch as one control. */
 export function btnSvg(label: string, primary: boolean, half?: 'left' | 'right') {
-  const w = Math.ceil(textW(label) + 20), h = Math.ceil(L.btnH) + ROOM
+  const w = Math.ceil(textW(label) + 20), ht = Math.ceil(L.btnH) + ROOM
   const r = half === 'left' ? ' style="border-radius:5px 0 0 5px"' : half === 'right' ? ' style="border-radius:0 5px 5px 0"' : ''
-  return pic(w, h, `<span class="btn${primary ? ' primary' : ''}"${r}>${esc(label)}</span>`)
+  return pic(w, ht, `<span class="btn${primary ? ' primary' : ''}"${r}>${esc(label)}</span>`)
 }
 
 /** The mock's waiting strip (.wait): amber dot, "Te espera N" bold, the first item cut with an ellipsis, Ver. `w` is the
  * width it is drawn at (the pane's slot). */
 export function bannerSvg(o: { w: number; count: string; text: string; ver: string }) {
-  const w = Math.max(200, Math.round(o.w)), h = Math.ceil(L.bannerH) + ROOM
-  return pic(w, h, `<div class="wait"><span class="dot"></span><b>${esc(o.count)}</b><span class="t">${esc(o.text)}</span><span class="btn">${esc(o.ver)}</span></div>`)
+  const w = Math.max(200, Math.round(o.w)), ht = Math.ceil(L.bannerH) + ROOM
+  return pic(w, ht, `<div class="wait"><span class="dot"></span><b>${esc(o.count)}</b><span class="t">${esc(o.text)}</span><span class="btn">${esc(o.ver)}</span></div>`)
 }
 
 /** Abrir siempre: the mock's primary button and, beside it, a chip in green (on) or grey (off) that says which. */
 export function toggleSvg(o: { label: string; on: boolean; state: string }) {
   // As tall as the taller of the two (the chip, at 12.5px with the body's line height), both centred on one line.
-  const chip = textW(o.state, 'w400', 12.5) + 7 + 6 + 22, w = Math.ceil(textW(o.label) + 20 + 8 + chip), h = Math.ceil(Math.max(L.btnH, L.chipH)) + ROOM
-  return pic(w, h, `<span class="btn primary">${esc(o.label)}</span><span class="chip ${o.on ? 'on' : 'off'}"><i></i>${esc(o.state)}</span>`, 'r mid')
+  const chip = textW(o.state, 'w400', 12.5) + 7 + 6 + 22, w = Math.ceil(textW(o.label) + 20 + 8 + chip), ht = Math.ceil(Math.max(L.btnH, L.chipH)) + ROOM
+  return pic(w, ht, `<span class="btn primary">${esc(o.label)}</span><span class="chip ${o.on ? 'on' : 'off'}"><i></i>${esc(o.state)}</span>`, 'r mid')
 }
 
 // A reply of a Jefe's question: a pill, with `line` under the pills saying what it sends (null when the label is the very

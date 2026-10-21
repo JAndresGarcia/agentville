@@ -3,7 +3,8 @@
 Agentville is a pixel-art office for your Claude Code agents, drawn in a panel of the Claude desktop app. It is for
 people who run several Claude Code sessions or subagents at once. Each session is an office with its team: the Lead
 (the session's main agent) and its subagents at their desks. Agents that need your OK walk to your desk and wait in
-line, and from the same panel you approve, answer and message every session. Type `/agentville` in a session to open
+line, and from the same panel you reject, answer and message every session; to approve, one press opens that
+session's chat, where Claude asks you. Type `/agentville` in a session to open
 the panel; a short tour explains it the first time.
 
 ## More detail
@@ -129,8 +130,8 @@ session, it is under two minutes old and it is newer than the last one taken. Wh
 - send a message as if you typed it (your text, or a reply button's text), always as a plain prompt, never as a
   `/command`;
 - stop the running turn;
-- approve or reject a permission request that session holds for the panel (about 8 seconds), only when the whole
-  command fits on the card with nothing masked, and only if it is still the same command;
+- reject a permission request that session holds for the panel (about 8 seconds), only when the whole command fits on
+  the card with nothing masked (no order ever approves one);
 - dismiss a session it suggested, or leave a line in its empty prompt box without sending it;
 - ask its Lead, in a fixed message, to remove unused worktrees.
 
@@ -210,8 +211,9 @@ and approver), used only by the Agentville team flow.
 ## Permission requests
 
 While a panel is open, a permission request a session would ask you waits in the panel for about 8 seconds for
-Approve or Reject; with no answer, or no panel, the session asks you as usual. Questions and plan approvals are always
-answered in the session.
+Reject (key R); with no answer, or no panel, the session asks you as usual. The panel never approves: Approve in chat
+(key A) opens the chat where the session asks, and you approve in Claude's own prompt there. Questions and plan
+approvals are always answered in the session.
 
 ## License
 

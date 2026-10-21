@@ -2,7 +2,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, Mounted } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { IDLE_MS, MAIN, OFFER_TTL, SLEEP_MS, cmdHash, addSaid, isIdle, trusted, claimSlot, newBeat, notesFrom, pushChat, roleOf, setAgent } from '../hooks/beat'
+import { IDLE_MS, MAIN, OFFER_TTL, SLEEP_MS, addSaid, isIdle, trusted, claimSlot, newBeat, notesFrom, pushChat, roleOf, setAgent } from '../hooks/beat'
 import type { Beat, Cmd } from '../hooks/beat'
 import { paletteOf } from '../hooks/look'
 import { STRINGS, setLang, t } from '../hooks/i18n'
@@ -513,7 +513,7 @@ for (const hook of ['turn.start', 'tool.call', 'PermissionRequest'] as const) {
     const { files, reads } = serveBeats(on, [newBeat('other', 'otra', 100000 - 1)].map(b => ({ ...b, slot: 0 })))
     on('turn.start', ($2, e) => ({ turnId: e.turnId }))
     on('tool.call', () => ({ result: 'ok' }) as never)
-    on('classic.PermissionRequest', () => ({}))
+    on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
     const fire = () => (hook === 'turn.start' ? $.turn.start({ text: 'hola', turnId: 't1' })
       : hook === 'tool.call' ? $.tool.call({ tool: 'Read', file_path: '/x/a.ts' } as never)
       : $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'ls' } }))
@@ -1035,7 +1035,7 @@ test('Asks option B: the note opens its card over the map; its × or another pre
   expect((await hitKeys(ui)).filter(k => k.startsWith('note-'))).toEqual(['note-reply-toolu_w1-0', 'note-reply-toolu_w1-1', 'note-reply-toolu_w1-2'])
   // every hit Button shows the invisible filler only
   const hits = (await Promise.all((await bandClients(ui)).map(c => ui.findAll({ type: 'Button', in: c.key! })))).flat().filter(b => b.key?.startsWith('note-'))
-  expect([hits.length >= 3, hits.every(b => /^ㅤ+$/.test(b.text ?? ''))]).toEqual([true, true])
+  expect([hits.length >= 3, hits.every(b => /^\u3164+$/.test(b.text ?? ''))]).toEqual([true, true])
   expect(lastEls(files) - closed).toBeLessThanOrEqual(60)
   await onMap(ui, 'card-close')
   expect(await open()).toEqual([])
@@ -1236,7 +1236,7 @@ test('Notes AC7: a question of 4 replies and 3 suggestions open adds at most 60 
   const opened = lastEls(files)
   expect((await hitKeys(ui)).filter(k => k.startsWith('note-'))).toEqual(['note-reply-toolu_w9-0', 'note-reply-toolu_w9-1', 'note-reply-toolu_w9-2', 'note-reply-toolu_w9-3'])
   const hits = (await Promise.all((await bandClients(ui)).map(c => ui.findAll({ type: 'Button', in: c.key! })))).flat().filter(b => b.key?.startsWith('note-'))
-  expect([hits.length >= 4, hits.every(b => /^ㅤ+$/.test(b.text ?? ''))]).toEqual([true, true])
+  expect([hits.length >= 4, hits.every(b => /^\u3164+$/.test(b.text ?? ''))]).toEqual([true, true])
   await onMap(ui, 'card-close')
   const closed = lastEls(files)
   expect([opened - closed <= 60, opened < 1500]).toEqual([true, true])
@@ -1826,8 +1826,8 @@ test('every state pill is 22 px tall and wide enough for its words, icon, gap, p
   const size = (src: string) => [Number(/width="([\d.]+)"/.exec(src)![1]), Number(/height="([\d.]+)"/.exec(src)![1])]
   const labels = [...Object.values(STATES).map(s => s.label), 'Done', 'Listo', 'Terminó', 'Espera tu aprobación', 'Te sugiere sesiones']
   for (const label of labels) {
-    const [w, h] = size(chipSvg('terminado', label, '#7fcf98'))
-    expect([label, h, w! >= textW(label, 'w700', 12.5) + 12 + 6 + 2 * 10 + 2 * 1.2]).toEqual([label, 22, true])
+    const [w, ht] = size(chipSvg('terminado', label, '#7fcf98'))
+    expect([label, ht, w! >= textW(label, 'w700', 12.5) + 12 + 6 + 2 * 10 + 2 * 1.2]).toEqual([label, 22, true])
   }
   for (const st of ['esperando', 'error', 'trabajando', 'leyendo', 'inactivo', 'terminado', 'sugiere'] as const) expect(size(chipSvg(st, 'Done', '#fff'))[1]).toBe(22)
   // the suggestion: the chip's dot, no icon path; the words start where every pill's do
@@ -2354,14 +2354,14 @@ test('G5: a Bash request held in the pane keeps Aprobar and Rechazar and no chat
   const ui = await mountPane($)
   await ui.press({ key: 'pick-s1' })
   expect((await areas(ui)).filter(k => k.startsWith('btns-chatlink') || k.startsWith('btns-ask'))).toEqual(['btns-ask-s1-jefe'])
-  expect([(await btn(ui, 'q-ok-r1'))?.text, (await btn(ui, 'q-no-r1'))?.text]).toEqual(['▸ Aprobar (A)', 'Rechazar (R)'])
+  expect([(await btn(ui, 'q-ok-r1'))?.text, (await btn(ui, 'q-no-r1'))?.text]).toEqual(['▸ Aprobar en el chat (A)', 'Rechazar (R)'])
   await ui.unmount()
 })
 
 test('G5: a request for Edit, then the turn ends asking: the heartbeat drops the tool, the banner and card never say Edit', async ($, on) => {
   const clock = mock.clock(on, { now: 100_000 })
   const { files } = serveBeats(on, [newBeat('s-test', 'proj', clock.now())])
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   on('turn.complete', ($2, e) => ({ text: e.answer }))
   await startSession($)
   await $.classic.PermissionRequest({ tool_name: 'Edit', tool_input: { file_path: '/home/test/proj/a.ts', old_string: 'a', new_string: 'b' } } as never)
@@ -2425,7 +2425,7 @@ test('G: every point of the drawn notes pin opens the notes: its zone takes the 
 test('G: a request written while the pane is open shows Aprobar within a second, not on the next 3 s sync', async ($, on) => {
   const clock = mock.clock(on, { now: 100_000 })
   serveBeats(on, [newBeat('s-test', 'proj', clock.now())])
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   await startSession($)
   await $.command.run(OPEN)
   const ui = await mountPane($)
@@ -2479,7 +2479,7 @@ test('H3: a held request stores its time after the heartbeat is saved, and the r
   const clock = mock.clock(on, { now: 100_000 })
   let slow = false // the heartbeat write takes 50 ms of mock time: the stored time must come after it
   const { store, inits, ran } = serveBeats(on, [newBeat('s-test', 'proj', clock.now())], { waitWrite: p => (slow && p.endsWith('/sessions/s-test.json') ? clock.sleep(50) : undefined) })
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   await startSession($)
   await $.command.run(OPEN)
   const ui = await mountPane($)
@@ -2601,7 +2601,7 @@ test('T: a light pane is not throttled: a change every second, a redraw every se
 test('AE: a held request carries its hold end; it stays after an unanswered hold and goes with an answer', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files, store } = serveBeats(on, beats(clock.now()))
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   store['mailbox-key'] = 'k-test'
   await startSession($)
   await $.command.run(OPEN)
@@ -2609,7 +2609,7 @@ test('AE: a held request carries its hold end; it stays after an unanswered hold
   let done = false
   void ask($).then(() => { done = true })
   await clock.advance(0)
-  // The hold is what the hook's budget leaves, and that budget runs on real time: allow a little under 8 s.
+  // The hold is a fixed 8 s (HOLD_MS); the kit's clock may have moved a little before the hook read it.
   const held = beatOf(files).agents[MAIN]!.held!
   expect([typeof beatOf(files).agents[MAIN]!.req, held >= t0 + 7500 && held <= t0 + 8000]).toEqual(['string', true])
   await clock.advance(9000)
@@ -2619,7 +2619,7 @@ test('AE: a held request carries its hold end; it stays after an unanswered hold
   void ask($).then(() => { done = true })
   await clock.advance(0)
   const req = beatOf(files).agents[MAIN]!.req!
-  await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind: 'allow', req, text: await cmdHash('pnpm test') })])
+  await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind: 'deny', req })])
   await clock.advance(1000)
   await until(clock, () => done, 50, 100)
   expect(beatOf(files).agents[MAIN]!.held).toBeUndefined() // answered
@@ -2642,13 +2642,13 @@ test('AE: Aprobar and Rechazar count the hold down with the same keys; past it n
   await ui.press({ key: 'pick-s1' })
   const labels = async () => [(await btn(ui, 'q-ok-r1'))?.text, (await btn(ui, 'q-no-r1'))?.text]
   const clients = async () => (await ui.findAll({ type: 'Client' })).map(c => c.key!).filter(k => k.startsWith('btns-ask-s1-jefe'))
-  expect(await labels()).toEqual(['▸ Aprobar (A · 6 s)', 'Rechazar (R · 6 s)'])
+  expect(await labels()).toEqual(['▸ Aprobar en el chat (A · 6 s)', 'Rechazar (R · 6 s)'])
   const keys = await clients()
   expect(keys).toEqual(['btns-ask-s1-jefe~0'])
   await clock.advance(2000)
   // the ticker redrew (a heavy pane at most once per RENDER_GAP, so 5 or 4 s): only the labels moved
   const [ok2, no2] = await labels(), s2 = /(\d) s\)$/.exec(ok2 ?? '')?.[1]
-  expect([ok2, no2]).toEqual([`▸ Aprobar (A · ${s2} s)`, `Rechazar (R · ${s2} s)`])
+  expect([ok2, no2]).toEqual([`▸ Aprobar en el chat (A · ${s2} s)`, `Rechazar (R · ${s2} s)`])
   expect(['4', '5']).toContain(s2)
   expect(await clients()).toEqual(keys)
   expect((await keyed(ui, 'a')).map(b => b.key)).toEqual(['hot-q-ok-r1'])
@@ -2664,15 +2664,30 @@ test('AE: Aprobar and Rechazar count the hold down with the same keys; past it n
   await ui.unmount()
 })
 
+// 1.1.0: the app asks a child session's permission in the chat that started it, so Aprobar en el chat opens that one.
+test('Aprobar en el chat on a child session\'s request opens the starter session\'s chat and sends no order', async ($, on) => {
+  const clock = mock.clock(on, { now: 100000 }), t0 = clock.now()
+  const { files, toasts, ran } = serveBeats(on, childHeld(t0, t0 + 6000), { run: a => (a[0] === '/usr/bin/open' ? { exitCode: 0, stdout: '', stderr: '' } : undefined) })
+  await $.command.run(OPEN)
+  const ui = await mountPane($)
+  await ui.press({ key: 'pick-s1' })
+  await ui.press({ key: 'q-ok-r1' })
+  await until(clock, () => toasts.some(x => x.startsWith('Abriendo')), 20)
+  expect(ran.filter(a => a[0] === '/usr/bin/open')).toEqual([OPEN_ARGV]) // blog's chat (s2), not tienda's
+  expect(toasts.at(-1)).toBe('Abriendo el chat de blog: apruébalo allí cuando Claude te lo pregunte (en 8 s como mucho)')
+  expect(ordersIn(files)).toEqual([])
+  await ui.unmount()
+})
+
 test('AE: a press that lands after the hold end sends nothing, even from a drawing that still showed the buttons', async ($, on) => {
   const clock = mock.clock(on, { now: 100000 }), t0 = clock.now()
   const { files, toasts } = serveBeats(on, childHeld(t0, t0 + 1200))
   await $.command.run(OPEN)
   const ui = await mountPane($)
-  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar (A · 2 s)')
+  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar en el chat (A · 2 s)')
   await clock.advance(1300) // past the end, before the gated redraw (heavy pane) or the next tick draws again
-  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar (A · 2 s)') // the drawing on screen still shows it
-  await ui.press({ key: 'q-ok-r1' })
+  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar en el chat (A · 2 s)') // the drawing on screen still shows it
+  await ui.press({ key: 'q-no-r1' }) // 1.1.0: Rechazar is the pane's only answer; Aprobar en el chat sends nothing
   await until(clock, () => toasts.length > 0, 20)
   expect(ordersIn(files)).toEqual([])
   expect(toasts).toEqual(['Se acabó el tiempo para responder aquí. Respóndelo en el chat blog de la app, donde aparece la solicitud.']) // the card's own words
@@ -2690,7 +2705,7 @@ test('AE: a new request toasts once, opens the notes card on it and marks the st
   setAgent(list[0]!, MAIN, t0, { state: 'esperando', activity: 'Te pide permiso', cmd: 'pnpm test', req: 'r1', held: t0 + 9000 })
   list[0]!.at = t0 + 1
   await clock.advance(3100) // the next sync
-  expect(toasts).toEqual([expect.stringMatching(/^\S+ · tienda pide permiso: respóndelo aquí en [5-6] s$/)]) // one toast, not "Te espera" too
+  expect(toasts).toEqual([expect.stringMatching(/^\S+ · tienda pide permiso: recházalo aquí en [5-6] s o apruébalo en el chat$/)]) // one toast, not "Te espera" too
   expect(await bannerAlt(ui)).toMatch(/^Nuevo · Te espera 1\. /)
   expect(await hitKeys(ui)).toContain('note-perm-r1') // the notes card opened on it by itself
   const pill = async () => /Ver y responder \((\d) s\)/.exec((await ui.findAll({ type: 'Svg' })).map(x => String(x.props.source)).join(' '))?.[1]
@@ -2777,7 +2792,7 @@ test('AE2: a hold end a session wrote past its 10 s budget counts down from 10 s
   const { files } = serveBeats(on, childHeld(t0, t0 + 600000))
   await $.command.run(OPEN)
   const ui = await mountPane($)
-  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar (A · 10 s)')
+  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar en el chat (A · 10 s)')
   await clock.advance(10500)
   expect(await btn(ui, 'q-ok-r1')).toBeUndefined()
   expect((await textsAll(ui, /^Se acabó el tiempo para responder aquí\./)).length).toBe(1)
@@ -2795,11 +2810,11 @@ test('AE2: requests that arrive together toast once with their count; one alread
   setAgent(list[1]!, MAIN, t0, { state: 'esperando', activity: 'Te pide permiso', cmd: 'pnpm lint', req: 'r2', held: t0 + 9000 })
   list[0]!.at = list[1]!.at = t0 + 1
   await clock.advance(3100)
-  expect(toasts).toEqual(['2 piden permiso · respóndelo aquí']) // one toast, and no "Te espera" for either
+  expect(toasts).toEqual(['2 piden permiso · recházalos aquí o apruébalos en el chat']) // one toast, and no "Te espera" for either
   setAgent(list[0]!, MAIN, t0, { req: 'r3', held: t0 + 3000 }) // a new request, read after its hold ended
   list[0]!.at = t0 + 2
   await clock.advance(2100)
-  expect(toasts).toEqual(['2 piden permiso · respóndelo aquí'])
+  expect(toasts).toEqual(['2 piden permiso · recházalos aquí o apruébalos en el chat'])
   setAgent(list[1]!, MAIN, t0, { state: 'trabajando', activity: 'Bash', cmd: null, req: null })
   list[1]!.at = t0 + 3
   await clock.advance(3100)
@@ -2819,8 +2834,8 @@ test('AE2: a request from an older mod, with no hold end, toasts the usual 8 s (
   setAgent(list[0]!, MAIN, t0, { state: 'esperando', activity: 'Te pide permiso', cmd: 'pnpm test', req: 'r1' })
   list[0]!.at = t0 + 1
   await clock.advance(3100)
-  expect(toasts).toEqual([expect.stringMatching(/^\S+ · tienda pide permiso: respóndelo aquí en 8 s$/)])
-  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar (A)') // no hold end: no countdown
+  expect(toasts).toEqual([expect.stringMatching(/^\S+ · tienda pide permiso: recházalo aquí en 8 s o apruébalo en el chat$/)])
+  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar en el chat (A)') // no hold end: no countdown
   await ui.unmount()
 })
 

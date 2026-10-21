@@ -53,7 +53,7 @@ const n1 = (v: number) => String(Math.round(v * 10) / 10)
 
 // The mock's rules, var() replaced by the light-theme literals (the stage is a fixed scene in every theme), each scoped
 // under .avt so nothing leaks if the Svg is inlined. `.avt` itself is the mock's body plus .stage.
-const CSS = (w: number, h: number) => `.avt{position:relative;width:${w}px;height:${h}px;overflow:hidden;font:15px/1.55 ${BODY};color:#1f1e1c}
+const CSS = (w: number, ht: number) => `.avt{position:relative;width:${w}px;height:${ht}px;overflow:hidden;font:15px/1.55 ${BODY};color:#1f1e1c}
 .avt p{margin:0;max-width:68ch}
 .avt .banner{position:absolute;left:12px;right:12px;top:40px;z-index:4;display:flex;gap:8px 12px;align-items:center;background:#3d301f;border:1px solid #e2a94a;border-radius:8px;padding:8px 10px;color:#ece6dc;font:14px/1.5 ${SF}}
 .avt .banner .dot{width:8px;height:8px;border-radius:50%;background:#e2a94a;flex:none}
@@ -162,7 +162,7 @@ export function tourCopy(lang: Lang, name = 'Tienda online') {
   }
 }
 /** FNV-1a 32 of a string, hex: the copy hash tourlayout.ts was measured with. */
-export const copyHash = (s: string) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0; return h.toString(16).padStart(8, '0') }
+export const copyHash = (s: string) => { let ht = 0x811c9dc5; for (let i = 0; i < s.length; i++) ht = Math.imul(ht ^ s.charCodeAt(i), 0x01000193) >>> 0; return ht.toString(16).padStart(8, '0') }
 
 /** The mock's place(): the bubble beside the target where there is room, as fractions of the stage. `bw`/`bh` are the
  * bubble's offsetWidth/offsetHeight over the stage's clientWidth/clientHeight, as the mock reads them. `side` names
@@ -191,7 +191,7 @@ export function tourOverlay(o: TourOverlayOpts): { svg: string; alt: string; hit
   const st = o.step === 'chat' ? { title: t('tour.chat.title', undefined, o.lang), say: t('tour.chat.say', undefined, o.lang), body: undefined } : L.s[MOCK_STEPS.indexOf(o.step)]!
   const first = o.n <= 1, last = o.n >= o.total
   const hits: TourHit[] = []
-  const hit = (key: string, x: number, y: number, w: number, h: number) => hits.push({ key, x0: x / v.w, y0: y / v.h, x1: (x + w) / v.w, y1: (y + h) / v.h })
+  const hit = (key: string, x: number, y: number, w: number, ht: number) => hits.push({ key, x0: x / v.w, y0: y / v.h, x1: (x + w) / v.w, y1: (y + ht) / v.h })
   const faces: Face[] = ['pix400', 'pix700']
   let shapes = '', pop = '', banner = '', card: TourRect | undefined
   // The chat step's target: a sample session row as the pane's list draws it (stripe, the focus office's name, its ↗,

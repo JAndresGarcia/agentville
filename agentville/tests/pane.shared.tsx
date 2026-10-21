@@ -153,6 +153,10 @@ export const OPEN = { command: 'agentville', args: '', origin: { kind: 'composer
 export const startSession = ($: Engine) => $.session.start({ cwd: '/home/test/proj', surface: 'desktop', isInteractive: true })
 export const beatOf = (files: Record<string, string>) => JSON.parse(files[`${HOME}/sessions/s-test.json`]!) as Beat
 export const ask = ($: Engine) => $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'pnpm test' } })
+// What the tests' stand-in for the session's own prompt answers, beneath the mod (the kit has nothing there, so a test
+// hook answers): a fixed deny in its own words, the only answer besides ask the plugin directory takes from a permission
+// hook. The mod's own deny says 'Rejected from Agentville'.
+export const ASKED = { decision: { behavior: 'deny', message: 'Asked in the session' } }
 
 // An order as the pane writes it, signed with `key`.
 export const signed = async (key: string, c: Omit<Cmd, 'sig'>, to = 's-test'): Promise<Cmd> => ({ ...c, sig: await signOf(key, c, to) })

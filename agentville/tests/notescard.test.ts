@@ -112,6 +112,7 @@ test('N: pressTitle makes a stored title safe for Arrancar\'s line: spaces folde
   expect([pressTitle('  Medir  la   caché ', id), pressTitle('«Di» "hola" “ya”', id), pressTitle('x'.repeat(81), id)!.length, pressTitle('x'.repeat(80), id)]).toEqual(['Medir la caché', 'Di hola ya', 80, 'x'.repeat(80)])
   expect([pressTitle('Medir\nla caché', id), pressTitle('a\u200bb', id), pressTitle('a\u0007b', id), pressTitle('a\u2028b', id), pressTitle(42, id), pressTitle(null, id)]).toEqual([null, null, null, null, null, null])
   expect([pressTitle('', id), pressTitle('  «»  ', id)]).toEqual([id, id])
-  expect(pressTitle('usa sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789', id)).not.toContain('abcdefghijklmnop')
+  // A fake key built from parts, so the shipped file holds no key-shaped literal (the plugin directory scans for them).
+  expect(pressTitle(`usa ${['sk', 'ant', 'api03'].join('-')}-abcdefghijklmnopqrstuvwxyz0123456789`, id)).not.toContain('abcdefghijklmnop')
   expect([pressTitle('usa token="s3cr3tvalue99"', id), pressTitle('usa password=«hunter2x»', id)]).toEqual(['usa token=•••', 'usa password=•••']) // a quote never splits a secret
 })

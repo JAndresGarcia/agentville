@@ -34,7 +34,7 @@ export const beatsDir = (home: string) => `${home}/.claude/agentville/sessions`
 // carry a suggested session's task id in `req` (offerOrderOk): the offering session acts itself. A dismiss calls the
 // app's tool; a fill (Arrancar) writes a fixed line into that session's own empty prompt box and never sends it. A
 // fillText carries a `/command` the pane held back (fillTextOf): written the same way, never sent, never run.
-export type Cmd = { n: number; kind: 'msg' | 'stop' | 'allow' | 'deny' | 'dismiss' | 'fill' | 'fillText'; text?: string; req?: string; sig?: string }
+export type Cmd = { n: number; kind: 'msg' | 'stop' | 'deny' | 'dismiss' | 'fill' | 'fillText'; text?: string; req?: string; sig?: string }
 export const FILL_MAX = 2000
 /** A fillText order's text, untrusted, as a session may type it in its own prompt box: one line (the pane's field has
  * no other; line and paragraph separators fold too), control, lone surrogate and HIDDEN characters dropped, a
@@ -59,9 +59,6 @@ export async function hmac(key: string, msg: string) {
   const inner = await sha256(k.map((x) => x ^ 0x36), utf8.encode(msg))
   return hex(await sha256(k.map((x) => x ^ 0x5c), inner))
 }
-/** SHA-256 of a permission request's command as the card showed it, hex: an `allow` order carries it as its signed text,
- * and the session approves only when it matches the command it holds. */
-export const cmdHash = async (cmd: string) => hex(await sha256(utf8.encode(cmd)))
 export const signOf = (key: string, c: Omit<Cmd, 'sig'>, to: string) => hmac(key, `${to}|${c.n}|${c.kind}|${c.req ?? ''}|${c.text ?? ''}`)
 /** The orders session `to` may act on: well formed, signed with `key` for it, at most two minutes old, at most 5 s ahead
  * and newer than `after` (the last `n` it accepted), so an order copied back into the mailbox never acts twice. */
@@ -77,22 +74,22 @@ export async function trusted(cmds: unknown[], key: string | null, now: number, 
   }
   return ok
 }
-/** How long a permission request waits for the pane: about 8 s, less when the hook's budget leaves less (a 2 s margin). */
-export const holdMs = (remainingMs: number) => Math.max(0, Math.min(8000, remainingMs - 2000))
-/** Why a file tool may not touch `path` (absolute): the mod's folder is written by the pane and the sessions alone,
- * and the plugin's store holds the mailbox key: no tool reads or writes it, and no search runs over a folder of
- * `~/.claude` that holds it. null when it may. */
+/** How long a permission request waits for the pane's Rechazar: 8 s, a fixed hold (a hook has 10 s in all). */
+export const HOLD_MS = 8000
+/** Why a file tool may not touch `path` (absolute): the mod's folder is written by the pane and the sessions alone
+ * (`folder`), and the plugin's store holds the mailbox key (`store`): no tool reads or writes it, and no search runs over
+ * a folder of `~/.claude` that holds it. null when it may. The tool guard words each answer itself. */
 const READERS = new Set(['Read', 'Grep', 'Glob']), WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 export const GUARDED_TOOLS = new Set([...READERS, ...WRITERS])
-export function guardedPath(tool: string, path: string, home: string): string | null {
+export function guardedPath(tool: string, path: string, home: string): 'store' | 'folder' | null {
   if (!GUARDED_TOOLS.has(tool)) return null
   const parts: string[] = []
   for (const s of path.replace(/^~(?=\/|$)/, home).split('/')) if (s === '..') parts.pop(); else if (s && s !== '.') parts.push(s)
   const p = `/${parts.join('/')}/`.toLowerCase(), hm = home.toLowerCase() // macOS paths ignore case
   const store = `${hm}/.claude/plugins/store/`
   const search = tool === 'Grep' || tool === 'Glob'
-  if (p.startsWith(`${store}agentville_`) || (search && p.startsWith(`${hm}/.claude/`) && (store.startsWith(p) || p.startsWith(store)))) return 'The Agentville store holds the key of its mailboxes; it is not for tools.'
-  if (WRITERS.has(tool) && p.startsWith(`${hm}/.claude/agentville/`)) return 'Only the Agentville panel and its sessions write ~/.claude/agentville.'
+  if (p.startsWith(`${store}agentville_`) || (search && p.startsWith(`${hm}/.claude/`) && (store.startsWith(p) || p.startsWith(store)))) return 'store'
+  if (WRITERS.has(tool) && p.startsWith(`${hm}/.claude/agentville/`)) return 'folder'
   return null
 }
 /** Why a command (Bash's, or any tool's `command`) may not run: it names the plugin's store, `.claude/plugins/store`
@@ -168,7 +165,7 @@ export const isMaskedCmd = (cmd: string | null | undefined) => !!cmd && cmd.incl
 /** What an agent does while a tool runs, in the pane's words; `cmd` is what a permission request shows (masked) and
  * `size` the length of the command before masking. For any tool but Bash, `cmd` is the tool's full name and every
  * argument it gets, one per line, each value as JSON (so a newline in a value never draws as another argument): what
- * an Aprobar allows, whole. */
+ * the card shows, whole. */
 export function doing(tool: string, input: unknown): { state: AgentvilleStateName; activity: string; cmd: string; size: number } {
   const i = (input ?? {}) as Record<string, unknown>
   // Only the first CMD_MAX * 2 characters of a value are masked and shown (the card shows CMD_MAX at most); `size`

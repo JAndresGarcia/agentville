@@ -2,7 +2,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, Mounted } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { MAIN, ORDER_TTL, cmdHash, cmdTitle, addSaid, redact, asCommand, asPrompt, guardedCommand, guardedPath, hmac, holdMs, trusted, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, doing, newBeat, notesFrom, pushChat, roleOf, setAgent, titleFrom } from '../hooks/beat'
+import { MAIN, ORDER_TTL, cmdTitle, addSaid, redact, asCommand, asPrompt, guardedCommand, guardedPath, hmac, HOLD_MS, trusted, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, doing, newBeat, notesFrom, pushChat, roleOf, setAgent, titleFrom } from '../hooks/beat'
 import type { Beat, Cmd } from '../hooks/beat'
 import { blocksOf, linkHost, runsOf } from '../hooks/rich'
 import { PALETTE_KEY, tint } from '../hooks/look'
@@ -14,7 +14,7 @@ import type { BtnsProps } from '../hooks/btns'
 import { CLOSE_W, PER_FLOOR, around, cardPart, cardRect, closeGlyphAt, diskTop, hqTop, officeTop, ROLES, STATES, SHIRTS, mapNote, toolsLabel, SLICES, SVG_LIMIT, agentName, agentsLayer, floorView, floorsOf, furnitureLayer, hotspots, houseLayer, initialWorld, selectionLayer, viewOf, worldFromBeats, zoneGrid } from '../hooks/scene'
 import { BAND_PX, CELL_PX, CLIENT_MAX, LIST_MAX, PAGE_CHARS, ROW_H, PAGE_DEPTH, PAGE_NODES, RENDER_GAP, bandCount, kTok, mapDrawPx, mapPx } from '../hooks/register'
 import { pageGate } from './pagerule'
-import { HOME, OPEN, PANE, SKILL_RULE, areas, ask, bandClients, bannerAlt, beatOf, beats, btn, btnsAll, btnsKeys, chatPane, clientKeys, crowd, drawn, fileStat, flowSeen, fresh, held, hitKeys, imageAt, keyed, lastEls, lastLog, line, mailbox, mountAt, mountPane, oldList, onMap, ordersIn, overlayOf, relaySetup, serveBeats, signed, sipsRun, startSession, stripEls, textOf, textsAll, textsIn, titleOf, tnodes, until, walk } from './pane.shared'
+import { ASKED, HOME, OPEN, PANE, SKILL_RULE, areas, ask, bandClients, bannerAlt, beatOf, beats, btn, btnsAll, btnsKeys, chatPane, clientKeys, crowd, drawn, fileStat, flowSeen, fresh, held, hitKeys, imageAt, keyed, lastEls, lastLog, line, mailbox, mountAt, mountPane, oldList, onMap, ordersIn, overlayOf, relaySetup, serveBeats, signed, sipsRun, startSession, stripEls, textOf, textsAll, textsIn, titleOf, tnodes, until, walk } from './pane.shared'
 import type { BandP, Entry, Logged, Stat, TN, UI } from './pane.shared'
 
 // These tests read the Spanish copy; English is the default, so the file sets Spanish first.
@@ -284,11 +284,14 @@ test('a card\'s × zone grows from the drawn ×, about 4 cells by 2 rows, wherev
   expect(CLOSE_W).toBeGreaterThanOrEqual(closeGlyphAt(290).w + 15) // the hq card's count ends left of the ×
 })
 
-test('a held request is approved from the pane, and messages and stops go to the session mailbox', async ($, on) => {
+// 1.1.0: the pane never approves. Aprobar en el chat opens the session's chat (Claude's own prompt approves there) and
+// sends no order; the session's hook passes the request on (see 'a request is held while this pane is open...').
+test('Aprobar en el chat opens the session\'s chat and sends no order; messages and stops go to the session mailbox', async ($, on) => {
   const clock = mock.clock(on, { now: 100000 }), now = clock.now()
-  const list = beats(now)
+  const list = beats(now), local = 'local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
   setAgent(list[0]!, MAIN, now, { req: 'r1' })
-  const { toasts, files: written, store } = serveBeats(on, list)
+  list[0]!.local = local
+  const { toasts, files: written, ran } = serveBeats(on, list, { run: a => (a[0] === '/usr/bin/open' ? { exitCode: 0, stdout: '', stderr: '' } : undefined) })
   await $.command.run({ command: 'agentville', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 110 } })
   written['/home/test/.claude/agentville/commands/s1.json'] = JSON.stringify([['review', 'Revisa el diff', 'builtin'], ['ponytail', 'Modo perezoso', 'plugin'], ['agentville', 'Abre Agentville', 'user']])
   const ui = await $.ui.mount({ plugin: 'agentville', surface: 'desktop', component: 'Pane', requestId: 'agentville', props: PANE })
@@ -296,13 +299,9 @@ test('a held request is approved from the pane, and messages and stops go to the
   await ui.press({ key: 'q-ok-r1' })
   await until(clock, () => toasts.length > 0) // signed on real time, outside `$`
   const box = () => JSON.parse(written['/home/test/.claude/agentville/control/s1.json'] ?? '{"cmds":[]}') as { cmds: Cmd[] }
-  expect(toasts).toEqual(['Aprobación enviada: la sesión la confirma']) // BD: sent, not yet approved
-  expect(box().cmds.map(c => [c.kind, c.req])).toEqual([['allow', 'r1']])
-  expect(box().cmds[0]!.text).toBe(await cmdHash('pnpm test')) // BD item 2: the approval names the command the card showed
-  // the session's ack settles it: here the command changed, so the pane says to answer it there
-  store['offer-acks'] = { 'allow:r1': { n: box().cmds[0]!.n, r: 'declined', at: clock.now() } }
-  await until(clock, () => toasts.length > 1, 30, 500) // the pane's ticker reads the acks every second
-  expect(toasts.at(-1)).toBe('El comando cambió: respóndelo en la sesión (tienda)')
+  expect(toasts).toEqual(['Abriendo el chat de tienda: apruébalo allí cuando Claude te lo pregunte (en 8 s como mucho)'])
+  expect(ran.filter(a => a[0] === '/usr/bin/open')).toEqual([['/usr/bin/open', `claude://claude.ai/epitaxy/${local}`]])
+  expect(box().cmds).toEqual([]) // no order: nothing a session could take as an approval
   // the mod's own field: a click focuses it; typing (accents too), a correction, a paste, selections and Enter send it
   const field = { in: 'field-s1' }
   await ui.pointer({ type: 'down', x: 2, y: 0, button: 'left', ...field })
@@ -318,8 +317,8 @@ test('a held request is approved from the pane, and messages and stops go to the
   for (const k of ['/', 'r', 'e']) await ui.key({ key: k, ...field }) // the session's commands open under the field
   await ui.key({ key: 'return', ...field }) // Enter on the pick: no session started here, so s1 may be another one (AZ item 3)
   await ui.press({ key: 'stop' })
-  await until(clock, () => box().cmds.length >= 4)
-  expect(box().cmds.map(c => [c.kind, c.kind === 'allow' ? c.req : c.text ?? c.req])).toEqual([['allow', 'r1'], ['msg', 'corre las pruebas'], ['fillText', '/review'], ['stop', undefined]]) // typed in its box, never sent
+  await until(clock, () => box().cmds.length >= 3)
+  expect(box().cmds.map(c => [c.kind, c.text ?? c.req])).toEqual([['msg', 'corre las pruebas'], ['fillText', '/review'], ['stop', undefined]]) // typed in its box, never sent
   expect(written['/home/test/.claude/agentville/viewer.json']).toBeDefined()
   await ui.unmount()
 })
@@ -715,29 +714,28 @@ test('a validly signed msg order that starts with a listed /command is submitted
   expect([asPrompt('hola /deploy'), asPrompt('/a`b c')]).toEqual(['hola /deploy', '`/a`b` c'])
 })
 
-// BD item 2: an approval names the command the pane showed; one for another command, or naming none, approves nothing
-// and denies nothing: the session asks you itself, at once.
-test('a signed allow whose command hash does not match the held request is not an approval: the session asks itself', async ($, on) => {
+// 1.1.0: the pane never approves, so only a signed deny answers a held request. Any other signed order naming it
+// answers nothing: the hold ends and the hook passes the request on with next(e), to the session's own prompt.
+test('a signed order of any kind but deny never answers a held request: the hook passes it on with next(e)', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files, store } = serveBeats(on, beats(clock.now()))
   let fellThrough = 0
-  on('classic.PermissionRequest', () => { fellThrough++; return {} })
+  on('classic.PermissionRequest', () => { fellThrough++; return { decision: { behavior: 'deny', message: 'Asked in the session' } } })
   store['mailbox-key'] = 'k-test'
   await startSession($)
   await $.command.run(OPEN)
-  for (const text of [await cmdHash('rm -rf /'), undefined]) { // another command's hash, then none (an older pane)
+  for (const kind of ['msg', 'stop', 'fill', 'fillText'] as const) {
     let answer: unknown = 'pending'
-    const was = fellThrough, t0 = clock.now()
+    const was = fellThrough
     void ask($).then(r => { answer = r })
     await clock.advance(0)
     const req = beatOf(files).agents[MAIN]!.req!
-    await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind: 'allow', req, ...(text ? { text } : {}) })])
+    await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind, req, text: 'pnpm test' })])
     await clock.advance(1000)
-    await until(clock, () => answer !== 'pending', 50, 100)
-    expect([answer, fellThrough - was, clock.now() - t0 < 7000]).toEqual([{}, 1, true]) // the app's own prompt, before the hold ends
-    expect(beatOf(files).agents[MAIN]).toMatchObject({ req: null, activity: 'El comando cambió: respóndelo en la sesión' })
-    await until(clock, () => (store['offer-acks'] as Record<string, { r: string }> | undefined)?.[`allow:${req}`] !== undefined)
-    expect((store['offer-acks'] as Record<string, { r: string }>)[`allow:${req}`]!.r).toBe('declined') // the pane toasts why
+    expect([kind, answer]).toEqual([kind, 'pending']) // still held: it answered nothing
+    await until(clock, () => answer !== 'pending', 50, 200)
+    expect([kind, answer, fellThrough - was]).toEqual([kind, ASKED, 1]) // passed on: the app's own prompt asks
+    expect(beatOf(files).agents[MAIN]!.req).toBeNull()
   }
 })
 
@@ -758,7 +756,7 @@ test('trusted: junk, old, future and unsigned orders are dropped; HMAC-SHA256 ma
 
 test('tools may not write the mod folder nor read, search or write its store; relative paths are judged from the session folder', async ($, on) => {
   serveBeats(on, []) // the session's folder is /home/test/proj
-  on('tool.check', () => ({ decision: 'allow' as const }))
+  on('tool.check', () => ({ decision: 'ask' as const })) // beneath the guard: what passes on reads ask
   const check = (tool: string, input: Record<string, string>) => $.tool.check({ tool, input }).then(r => r.decision)
   const store = '/home/test/.claude/plugins/store/agentville_jandresgarcia-1.json'
   for (const tool of ['Write', 'Edit', 'MultiEdit']) {
@@ -774,11 +772,11 @@ test('tools may not write the mod folder nor read, search or write its store; re
   expect(await check('Grep', { pattern: 'x', path: '/home/test/.claude' })).toBe('deny') // a search over the store's folders
   expect(await check('Grep', { pattern: 'x', path: '../.claude/plugins' })).toBe('deny')
   expect(await check('Glob', { pattern: '*', path: '/home/test/.claude/plugins/store' })).toBe('deny')
-  expect(await check('Read', { file_path: `${HOME}/sessions/s1.json` })).toBe('allow') // reading the heartbeats is harmless
-  expect(await check('Grep', { pattern: 'x', path: HOME })).toBe('allow')
-  expect(await check('Grep', { pattern: 'x' })).toBe('allow') // no path: the session's own folder
-  expect(await check('Write', { file_path: 'src/a.ts' })).toBe('allow')
-  expect(await check('Bash', { command: 'ls' })).toBe('allow')
+  expect(await check('Read', { file_path: `${HOME}/sessions/s1.json` })).toBe('ask') // reading the heartbeats is harmless
+  expect(await check('Grep', { pattern: 'x', path: HOME })).toBe('ask')
+  expect(await check('Grep', { pattern: 'x' })).toBe('ask') // no path: the session's own folder
+  expect(await check('Write', { file_path: 'src/a.ts' })).toBe('ask')
+  expect(await check('Bash', { command: 'ls' })).toBe('ask')
   expect(guardedPath('Write', '~/.claude/agentville', '/home/test')).not.toBeNull()
   expect(guardedPath('Grep', '/home/test/.claude/agentville/control', '/home/test')).toBeNull()
 })
@@ -787,16 +785,16 @@ test('tools may not write the mod folder nor read, search or write its store; re
 // without naming it still passes, as the docs say.
 test('Bash may not name the plugin store or the mailbox key', async ($, on) => {
   serveBeats(on, [])
-  on('tool.check', () => ({ decision: 'allow' as const }))
+  on('tool.check', () => ({ decision: 'ask' as const })) // beneath the guard: what passes on reads ask
   const check = (command: string) => $.tool.check({ tool: 'Bash', input: { command } }).then(r => r.decision)
   for (const c of ['cat ~/.claude/plugins/store/agentville_x.json', 'grep -r mailbox-key ~/.claude', 'cat $HOME/.claude/plugins/"st"ore/*', "cat ~/.claude/Plugins//St\\ore/x", 'jq .mailbox-key x', 'cp ~/.claude/plugins/store/x /tmp'])
     expect([c, await check(c)]).toEqual([c, 'deny'])
   for (const c of ['ls', 'pnpm test', 'cat ~/.claude/plugins/installed_plugins.json', 'git status', 'cat src/plugins/store.ts', 'vim lib/plugins/store/index.ts'])
-    expect([c, await check(c)]).toEqual([c, 'allow'])
+    expect([c, await check(c)]).toEqual([c, 'ask'])
   expect(await check('cat ~/.claude/./plugins/./store/x')).toBe('deny')
   // any tool that takes a command (an MCP shell), not only Bash
   expect((await $.tool.check({ tool: 'mcp__box__shell', input: { command: 'cat ~/.claude/plugins/store/x' } })).decision).toBe('deny')
-  expect((await $.tool.check({ tool: 'mcp__box__shell', input: { command: 'ls' } })).decision).toBe('allow')
+  expect((await $.tool.check({ tool: 'mcp__box__shell', input: { command: 'ls' } })).decision).toBe('ask')
   expect(guardedCommand(undefined)).toBeNull()
   expect(guardedCommand('cd ~/.claude/plugins && cat st*/*')).toBeNull() // the known gap: partial, documented
 })
@@ -810,13 +808,13 @@ test('tools may not reach the store or the mod folder through a symlink', async 
     '/tmp/ok.txt': '/tmp/ok.txt',
   }
   serveBeats(on, [], { stat: (p, resolve) => (real[p] ? { ...fileStat(), isLink: real[p] !== p, ...(resolve ? { realPath: real[p] } : {}) } : undefined) })
-  on('tool.check', () => ({ decision: 'allow' as const }))
+  on('tool.check', () => ({ decision: 'ask' as const })) // beneath the guard: what passes on reads ask
   const check = (tool: string, input: Record<string, string>) => $.tool.check({ tool, input }).then(r => r.decision)
   expect(await check('Read', { file_path: '/tmp/link/agentville_x.json' })).toBe('deny')
   expect(await check('Write', { file_path: '/tmp/up/s1.json' })).toBe('deny')
   expect(await check('Grep', { pattern: 'x', path: '/tmp/claude' })).toBe('deny')
-  expect(await check('Read', { file_path: '/tmp/ok.txt' })).toBe('allow')
-  expect(await check('Write', { file_path: '/tmp/nowhere/new.txt' })).toBe('allow') // unresolvable: judged as spelled
+  expect(await check('Read', { file_path: '/tmp/ok.txt' })).toBe('ask')
+  expect(await check('Write', { file_path: '/tmp/nowhere/new.txt' })).toBe('ask') // unresolvable: judged as spelled
 })
 
 test('a heartbeat whose id is not a plain id, or not its own file name, is never drawn nor written to', async ($, on) => {
@@ -836,7 +834,7 @@ test('a heartbeat whose id is not a plain id, or not its own file name, is never
 test('a request is held while this pane is open, answered by a signed order, and its req cleared', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files, store } = serveBeats(on, beats(clock.now()))
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   store['mailbox-key'] = 'k-test'
   await startSession($)
   await $.command.run(OPEN)
@@ -845,22 +843,23 @@ test('a request is held while this pane is open, answered by a signed order, and
   await clock.advance(0)
   const req = beatOf(files).agents[MAIN]!.req!
   expect(req).toBeTruthy()
-  await mailbox(files, [await signed('forged', { n: clock.now() * 1000, kind: 'allow', req, text: await cmdHash('pnpm test') })])
+  await mailbox(files, [await signed('forged', { n: clock.now() * 1000, kind: 'deny', req })])
   await clock.advance(1000)
   expect(done).toBe(false) // a forged answer is ignored
-  await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind: 'allow', req, text: await cmdHash('pnpm test') })])
+  await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind: 'deny', req })])
   await clock.advance(1000)
   await until(clock, () => done, 50, 100)
   expect(done).toBe(true)
-  expect(answer).toEqual({ decision: { behavior: 'allow' } }) // never updatedInput nor updatedPermissions
-  expect(beatOf(files).agents[MAIN]).toMatchObject({ req: null, activity: 'Aprobado desde Agentville' })
-  // unanswered: back to the session's own prompt after about 8 s, the request cleared
+  expect(answer).toEqual({ decision: { behavior: 'deny', message: 'Rejected from Agentville' } }) // fixed words, the only answer
+  expect(beatOf(files).agents[MAIN]).toMatchObject({ req: null, activity: 'Rechazado desde Agentville' })
+  // unanswered: passed on with next(e) to the session's own prompt after about 8 s, the request cleared
   done = false
-  void ask($).then(() => { done = true })
+  void ask($).then(r => { answer = r; done = true })
   await clock.advance(7000)
   expect(done).toBe(false)
   await clock.advance(2000)
   expect(done).toBe(true)
+  expect(answer).toEqual(ASKED)
   expect(beatOf(files).agents[MAIN]!.req).toBeNull()
   // a command too long to show whole is never held for the pane
   await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'x'.repeat(400) } })
@@ -870,7 +869,7 @@ test('a request is held while this pane is open, answered by a signed order, and
 test('I AC7: a signed start order whose req is the pending request never answers it; the request stays held', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files, store } = serveBeats(on, beats(clock.now()))
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   store['mailbox-key'] = 'k-test'
   await startSession($)
   await $.command.run(OPEN)
@@ -883,13 +882,13 @@ test('I AC7: a signed start order whose req is the pending request never answers
   expect([done, beatOf(files).agents[MAIN]!.req]).toEqual([false, req]) // still held for the pane
   await mailbox(files, [await signed('k-test', { n: clock.now() * 1000, kind: 'deny', req })])
   await until(clock, () => done, 50, 100)
-  expect(answer).toEqual({ decision: { behavior: 'deny', message: 'Rechazado desde Agentville' } })
+  expect(answer).toEqual({ decision: { behavior: 'deny', message: 'Rejected from Agentville' } }) // fixed words (1.1.0)
 })
 
-// The kit gives every hook its own full budget and cannot set a smaller one, nor show what a mocked sleep was handed
-// (so `{ signal: next.signal }` is not asserted here): the hold's length for a given budget is pinned on holdMs instead.
-test('the hold is what the hook budget leaves less 2 s, at most 8 s', () => {
-  expect([holdMs(Infinity), holdMs(10000), holdMs(4000), holdMs(1500)]).toEqual([8000, 8000, 2000, 0])
+// 1.1.0: the hold is a fixed constant (the plugin directory reads no budget in a permission hook); 8 s is what the old
+// budget-based hold gave with a hook's full 10 s. The hold's real length is checked above (7 s held, 9 s passed on).
+test('the hold is a fixed 8 s', () => {
+  expect(HOLD_MS).toBe(8000)
 })
 
 // The kit's engine raises no ui.close (and a test cannot call $.ui.close): a closed pane is one the engine no longer
@@ -897,7 +896,7 @@ test('the hold is what the hook budget leaves less 2 s, at most 8 s', () => {
 test('with the pane closed a request is never held; another session\'s pane counts while it wrote in the last 4 s', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files, panes } = serveBeats(on, beats(clock.now()))
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   await startSession($)
   await $.command.run(OPEN)
   panes.length = 0
@@ -1179,7 +1178,7 @@ test('a request with a part hidden shows it masked with no Aprobar or Rechazar; 
   const clock = mock.clock(on, { now: 100000 }), now = clock.now(), list = beats(now)
   setAgent(list[0]!, MAIN, now - 10, { cmd: `curl -H "Authorization: Bearer ${FAKE.bearer}" https://x.io`, req: 'r1' }) // first in line
   setAgent(list[0]!, 'ag1', now, { state: 'esperando', activity: 'Te pide permiso', cmd: 'pnpm lint', req: 'r2' })
-  const { toasts, files, store } = serveBeats(on, list)
+  const { toasts, files } = serveBeats(on, list)
   await $.command.run(OPEN)
   const ui = await mountPane($)
   // the banner only offers Ir al primero
@@ -1193,20 +1192,20 @@ test('a request with a part hidden shows it masked with no Aprobar or Rechazar; 
   expect(await btn(ui, 'q-no-r1')).toBeUndefined()
   expect((await keyed(ui, 'a')).map(b => b.key)).toEqual(['hot-q-ok-r2'])
   expect((await keyed(ui, 'r')).map(b => b.key)).toEqual(['hot-q-no-r2'])
+  // 1.1.0: Aprobar en el chat sends nothing (no chat link here: the toast says where); Rechazar answers r2 itself
   await ui.press({ key: 'q-ok-r2' })
   await until(clock, () => toasts.length > 0)
-  expect(toasts).toEqual(['Aprobación enviada: la sesión la confirma'])
-  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['allow', 'r2']])
-  store['offer-acks'] = { 'allow:r2': { n: ordersIn(files)[0]!.n, r: 'ok', at: clock.now() } } // the session took it
-  await until(clock, () => toasts.length > 1, 30, 500) // the pane's ticker reads the acks every second
-  expect(toasts.at(-1)).toBe('Aprobado en tienda')
+  expect([toasts, ordersIn(files)]).toEqual([['Apruébalo en la sesión tienda: Claude te lo pregunta allí'], []])
+  await ui.press({ key: 'q-no-r2' })
+  await until(clock, () => toasts.length > 1)
+  expect([toasts.at(-1), ordersIn(files).map(c => [c.kind, c.req])]).toEqual(['Enviado: rechazado', [['deny', 'r2']]])
   await ui.unmount()
 })
 
 test('the session never holds a command shown with a part hidden, nor one that masks below the cap', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files } = serveBeats(on, beats(clock.now()))
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   await startSession($)
   await $.command.run(OPEN)
   const huge = `curl -H "Authorization: Bearer ${'A1'.repeat(200)}" https://x.io`
@@ -1222,7 +1221,7 @@ test('the session never holds a command shown with a part hidden, nor one that m
   }
 })
 
-// Security audit 2: Aprobar allows exactly what the card shows. Any tool but Bash shows its full name and every argument
+// Security audit 2: the card shows exactly what is asked. Any tool but Bash shows its full name and every argument
 // (the whole path, the URL, an MCP tool's arguments); what cannot be shown whole, or draws something else, goes to the
 // session with no Aprobar and no A key.
 test('a non-Bash request shows the full tool name and every argument; one too long, masked or with hidden characters is answered in the session', async ($, on) => {
@@ -1231,7 +1230,7 @@ test('a non-Bash request shows the full tool name and every argument; one too lo
   expect(doing('mcp__drive__delete_file', { id: 42, recursive: true }).cmd).toBe('mcp__drive__delete_file\nid: 42\nrecursive: true')
   const clock = mock.clock(on, { now: 1_000_000 })
   const { files } = serveBeats(on, beats(clock.now()))
-  on('classic.PermissionRequest', () => ({}))
+  on('classic.PermissionRequest', () => ({ decision: { behavior: 'deny', message: 'Asked in the session' } }))
   await startSession($)
   await $.command.run(OPEN)
   const held = async (tool_name: string, tool_input: Record<string, unknown>) => {
@@ -1247,8 +1246,8 @@ test('a non-Bash request shows the full tool name and every argument; one too lo
   for (const [tool, input] of [
     ['Edit', { file_path: '/home/test/a.ts', old_string: 'x'.repeat(200), new_string: 'y'.repeat(200) }], // longer than the card holds
     ['WebFetch', { url: 'https://x.io/?token=abc123', prompt: 'p' }], // masked
-    ['Bash', { command: 'echo safe ‮;hs.live | lruc' }], // a bidi override reorders what shows
-    ['Bash', { command: 'rm -rf ./build​' }], // zero width
+    ['Bash', { command: 'echo safe \u202e;hs.live | lruc' }], // a bidi override reorders what shows
+    ['Bash', { command: 'rm -rf ./build\u200b' }], // zero width
     ['Bash', { command: 'ls\x1b[2K' }], // a terminal control
     ['mcp__drive__delete_file', { id: 'a\u{E0041}' }], // a tag character
   ] as const) expect([tool, (await held(tool, input)).req]).toEqual([tool, false])
@@ -1346,7 +1345,7 @@ test('a heartbeat of the wrong shape is skipped and never freezes the pane; a ch
 
 test('the pane offers no Aprobar and no A key on a request whose command has hidden characters, even when the session holds it', async ($, on) => {
   const clock = mock.clock(on, { now: 100000 }), now = clock.now(), list = beats(now)
-  setAgent(list[0]!, MAIN, now - 10, { cmd: 'echo ok ‮', req: 'r1' })
+  setAgent(list[0]!, MAIN, now - 10, { cmd: 'echo ok \u202e', req: 'r1' })
   setAgent(list[0]!, 'ag1', now, { state: 'esperando', activity: 'Te pide permiso', cmd: 'pnpm lint', req: 'r2' })
   serveBeats(on, list)
   await $.command.run(OPEN)
@@ -1890,11 +1889,14 @@ test('AC1 (chrome): the banner above the map says who waits and goes to it; the 
   expect((await btnsAll(ui)).filter(b => /^top-/.test(b.key ?? ''))).toEqual([]) // the banner answers nothing: its text may be cut
   expect((await keyed(ui, 'a')).map(b => b.key)).toEqual(['hot-q-ok-r1']) // the card, which shows the command whole
   expect((await keyed(ui, 'r')).map(b => b.key)).toEqual(['hot-q-no-r1'])
-  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar (A)')
-  await ui.press({ key: 'q-ok-r1' })
+  expect((await btn(ui, 'q-ok-r1'))?.text).toBe('▸ Aprobar en el chat (A)')
+  await ui.press({ key: 'q-ok-r1' }) // 1.1.0: no order; with no chat link the toast says where Claude asks
   await until(clock, () => toasts.length > 0)
-  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['allow', 'r1']])
-  expect(toasts).toEqual(['Aprobación enviada: la sesión la confirma'])
+  expect(ordersIn(files)).toEqual([])
+  expect(toasts).toEqual(['Apruébalo en la sesión tienda: Claude te lo pregunta allí'])
+  await ui.press({ key: 'q-no-r1' }) // R's button still answers from the card
+  await until(clock, () => toasts.length > 1)
+  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['deny', 'r1']])
   await ui.unmount()
 })
 
@@ -1921,7 +1923,7 @@ test('AC2: an answered request hides from the banner and the card until the sess
   await $.command.run(OPEN)
   const ui = await mountPane($)
   slow = true
-  const both = Promise.all([ui.press({ key: 'q-ok-r1' }), ui.press({ key: 'hot-q-ok-r1' })]) // a double press: the button and A
+  const both = Promise.all([ui.press({ key: 'q-no-r1' }), ui.press({ key: 'hot-q-no-r1' })]) // a double press: the button and R (1.1.0: the pane's only answer)
   await clock.advance(600)
   await both
   slow = false
@@ -1931,7 +1933,7 @@ test('AC2: an answered request hides from the banner and the card until the sess
   for (const k of ['q-ok-r1', 'go-first']) expect(await btn(ui, k)).toBeUndefined()
   await clock.advance(1100) // a sync: the session still holds r1, so it stays hidden
   expect(await btn(ui, 'q-ok-r1')).toBeUndefined()
-  setAgent(list[0]!, MAIN, clock.now(), { state: 'trabajando', activity: 'Aprobado desde Agentville', req: null })
+  setAgent(list[0]!, MAIN, clock.now(), { state: 'leyendo', activity: 'Rechazado desde Agentville', req: null })
   list[0]!.at = clock.now() + 1
   await clock.advance(1100) // the session let it go: forgotten
   setAgent(list[0]!, MAIN, clock.now(), { state: 'esperando', activity: 'Te pide permiso', cmd: 'pnpm test', req: 'r1' })
@@ -2051,7 +2053,7 @@ test('AC9: only Buttons with a hotkey name it; only Enviar to compose; the field
   expect(hot.map(b => [b.props.hotkey, b.key]).sort()).toEqual([['a', 'hot-q-ok-r1'], ['d', 'hot-stop'], ['r', 'hot-q-no-r1']])
   const buttons = await btnsAll(ui)
   for (const b of buttons) expect(/\([ARD]\)$/.test(String(b.text))).toBe(hot.some(k => k.key === `hot-${b.key}`))
-  expect(buttons.filter(b => /\([ARD]\)$/.test(String(b.text))).map(b => b.text).sort()).toEqual(['Detener (D)', 'Rechazar (R)', '▸ Aprobar (A)'])
+  expect(buttons.filter(b => /\([ARD]\)$/.test(String(b.text))).map(b => b.text).sort()).toEqual(['Detener (D)', 'Rechazar (R)', '▸ Aprobar en el chat (A)'])
   const compose = async () => [...new Set((await Promise.all((await ui.findAll({ type: 'Client' })).filter(c => c.key?.startsWith('btns-compose-s1~')).map(c => ui.findAll({ type: 'Button', in: c.key! })))).flat().map(b => b.key!.replace(/~\d+$/, '')))]
   expect(await compose()).toEqual(['send']) // only Enviar: Cmd+V in the field attaches an image
   expect(await btn(ui, 'attach')).toBeUndefined()
@@ -2249,7 +2251,7 @@ test('C3: when the re-read before an answer fails, nothing is sent, the toast sa
   const ui = await mountPane($)
   await ui.press({ key: 'pick-s1' }) // closes the notes card the request opened (a press there would redraw with no HOME)
   env.broken = true
-  await ui.press({ key: 'q-ok-r1' })
+  await ui.press({ key: 'q-no-r1' }) // 1.1.0: Rechazar, the pane's only answer
   env.broken = false
   expect(toasts).toEqual([expect.stringMatching(/^No se pudo enviar la orden: /)]) // the kit reports a throwing mock its own way
   expect(files[`${HOME}/control/s1.json`]).toBeUndefined()
@@ -2398,16 +2400,26 @@ test('btns: the logged element count is the pane plus every Client\'s tree', asy
   await ui.unmount()
 })
 
-test('AC3: q-ok-<req> sends exactly one signed allow; a press on the card and the A key at once sends one', async ($, on) => {
-  const clock = mock.clock(on, { now: 100000 }), now = clock.now()
-  const { files, store } = serveBeats(on, held(now))
+// 1.1.0: the pane never approves. A and its button open the session's chat and send no order; R and its button at once
+// send exactly one signed deny.
+test('AC3: q-ok-<req> and the A key open the chat and send no order; q-no-<req> and the R key at once send one signed deny', async ($, on) => {
+  const clock = mock.clock(on, { now: 100000 }), now = clock.now(), list = held(now), local = 'local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
+  list[0]!.local = local
+  const { files, store, ran, toasts } = serveBeats(on, list, { run: a => (a[0] === '/usr/bin/open' ? { exitCode: 0, stdout: '', stderr: '' } : undefined) })
   await $.command.run(OPEN)
   const ui = await mountPane($)
   await Promise.all([ui.press({ key: 'hot-q-ok-r1' }), ui.post({ press: 'q-ok-r1' }, { in: 'btns-ask-s1-jefe~0' })])
+  await until(clock, () => toasts.length > 1)
+  for (let i = 0; i < 20; i++) await clock.settle() // a little more, so an order would show
+  expect(ordersIn(files)).toEqual([])
+  expect([...new Set(ran.filter(a => a[0] === '/usr/bin/open').map(a => a.join(' ')))]).toEqual([`/usr/bin/open claude://claude.ai/epitaxy/${local}`])
+  expect([...new Set(toasts)]).toEqual(['Abriendo el chat de tienda: apruébalo allí cuando Claude te lo pregunte (en 8 s como mucho)'])
+  expect(await ui.find({ type: 'Client', key: 'btns-ask-s1-jefe~0' })).toBeDefined() // still asking: Rechazar stays
+  await Promise.all([ui.press({ key: 'hot-q-no-r1' }), ui.post({ press: 'q-no-r1' }, { in: 'btns-ask-s1-jefe~0' })])
   await until(clock, () => ordersIn(files).length > 0)
   for (let i = 0; i < 20; i++) await clock.settle() // a little more, so a second order would show
   const sent = await trusted(ordersIn(files), store['mailbox-key'] as string, now + 1000, 's1')
-  expect(sent.map(c => [c.kind, c.req])).toEqual([['allow', 'r1']])
+  expect(sent.map(c => [c.kind, c.req])).toEqual([['deny', 'r1']])
   expect(ordersIn(files)).toHaveLength(1)
   expect(await ui.find({ type: 'Client', key: 'btns-ask-s1-jefe~0' })).toBeUndefined() // answered: hidden until the session lets it go
   await ui.unmount()
@@ -2439,30 +2451,33 @@ test('AC4: an unknown key, a number, another Client\'s key, an old req and a mas
   expect(await btn(ui, 'q-ok-r9')).toBeDefined()
   await ui.post({ press: 'q-ok-r2' }, { in: 'btns-ask-s1-rev~0' })
   nothing()
-  await ui.post({ press: 'q-ok-r9' }, { in: 'btns-ask-s1-rev~0' }) // the live one still answers
+  await ui.post({ press: 'q-no-r9' }, { in: 'btns-ask-s1-rev~0' }) // the live one still answers (1.1.0: Rechazar, the pane's only answer)
   await until(clock, () => ordersIn(files).length > 0)
-  expect((await trusted(ordersIn(files), store['mailbox-key'] as string, clock.now() + 1000, 's1')).map(c => [c.kind, c.req])).toEqual([['allow', 'r9']])
+  expect((await trusted(ordersIn(files), store['mailbox-key'] as string, clock.now() + 1000, 's1')).map(c => [c.kind, c.req])).toEqual([['deny', 'r9']])
   await ui.unmount()
 })
 
 test('AC5: exactly one A and one R on the card that can answer, D while busy; each runs the same action as its button', async ($, on) => {
   const clock = mock.clock(on, { now: 100000 }), now = clock.now()
-  const { files } = serveBeats(on, held(now))
+  const { files, toasts } = serveBeats(on, held(now))
   await $.command.run(OPEN)
   const ui = await mountPane($)
   await ui.press({ key: 'pick-s1' })
   const hot = (await ui.findAll({ type: 'Button' })).filter(b => b.props.hotkey)
-  expect(hot.map(b => [b.props.hotkey, b.key, b.props.plain, b.text]).sort()).toEqual([['a', 'hot-q-ok-r1', true, 'ㅤㅤ'], ['d', 'hot-stop', true, 'ㅤㅤ'], ['r', 'hot-q-no-r1', true, 'ㅤㅤ']])
+  expect(hot.map(b => [b.props.hotkey, b.key, b.props.plain, b.text]).sort()).toEqual([['a', 'hot-q-ok-r1', true, '\u3164\u3164'], ['d', 'hot-stop', true, '\u3164\u3164'], ['r', 'hot-q-no-r1', true, '\u3164\u3164']])
   const box = JSON.stringify(await ui.drawn()).match(/\{"type":"Box","props":\{[^{]*"key":"hotkeys"[^{]*/)?.[0] ?? ''
   expect(box).toContain('"width":0')
   expect(box).toContain('"overflow":"hidden"')
-  await ui.press({ key: 'hot-q-ok-r1' })
+  await ui.press({ key: 'hot-q-ok-r1' }) // 1.1.0: A opens the chat (none linked here: the toast says where), no order
+  await until(clock, () => toasts.length > 0)
+  expect([toasts, ordersIn(files), (await keyed(ui, 'a')).length]).toEqual([['Apruébalo en la sesión tienda: Claude te lo pregunta allí'], [], 1])
+  await ui.press({ key: 'hot-q-no-r1' })
   await until(clock, () => ordersIn(files).length > 0)
-  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['allow', 'r1']])
+  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['deny', 'r1']])
   expect((await keyed(ui, 'a')).length).toBe(0) // answered: hidden, and its keys with it
   await ui.press({ key: 'hot-stop' })
   await until(clock, () => ordersIn(files).length > 1)
-  expect(ordersIn(files).map(c => c.kind)).toEqual(['allow', 'stop'])
+  expect(ordersIn(files).map(c => c.kind)).toEqual(['deny', 'stop'])
   await ui.unmount()
 })
 
@@ -2610,9 +2625,9 @@ test('past the page rule with no map left, fewer chat rows, then the header, the
   expect(await ui.find({ type: 'Text', text: 'Agentville' })).toBeDefined() // the header stays
   expect([cmd.length > 270, cmd.indexOf('rm -rf') > 200]).toEqual([true, true])
   expect((await ui.findAll({ type: 'Code' })).map(c => c.props.source)).toContain(cmd) // the request whole, answerable here
-  await ui.press({ key: 'q-ok-r1' })
+  await ui.press({ key: 'q-no-r1' }) // 1.1.0: Rechazar, the pane's only answer
   await until(clock, () => toasts.length > 0)
-  expect(ordersIn(files, 'c0').map(c => [c.kind, c.req])).toEqual([['allow', 'r1']])
+  expect(ordersIn(files, 'c0').map(c => [c.kind, c.req])).toEqual([['deny', 'r1']])
   await ui.unmount()
 })
 
@@ -2867,9 +2882,10 @@ test('Tour AC9: a request that arrives mid-tour shows its banner above the map; 
   await ui.press({ key: 'go-first' })
   expect(store.tour).toEqual({ open: false, step: STEP('Tu despacho'), done: false })
   expect((await keyed(ui, 'a')).map(b => b.key)).toEqual(['hot-q-ok-r1'])
-  await ui.press({ key: 'hot-q-ok-r1' }) // the A key, on its card
+  expect((await keyed(ui, 'r')).map(b => b.key)).toEqual(['hot-q-no-r1'])
+  await ui.press({ key: 'hot-q-no-r1' }) // the R key, on its card (1.1.0: A opens the chat, see AC3)
   await until(clock, () => ordersIn(files).length > 0)
-  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['allow', 'r1']])
+  expect(ordersIn(files).map(c => [c.kind, c.req])).toEqual([['deny', 'r1']])
   await ui.unmount()
 })
 

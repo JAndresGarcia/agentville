@@ -30,7 +30,7 @@ same tail. Nothing read there is written anywhere or leaves the machine; a reply
 Commands, messages and pasted images can contain secrets (a token in a `curl`, for example). Obvious tokens are masked
 in commands, answers, messages and the task list before they are written; the session title is not masked. Masking is
 best effort and only catches known patterns. A masked part shows as ••• in the panel. A command with a masked part
-cannot be approved from the panel (the card says "Command with hidden values"), so you answer it in the session
+gets no buttons from the panel (the card says "Command with hidden values"), so you answer it in the session
 itself, where you see the full command. Everything stays in plain JSON under `~/.claude/agentville`, in a folder that
 is yours alone (`chmod 700`), for as long as [How long files are kept](#how-long-files-are-kept) says.
 
@@ -86,8 +86,8 @@ relay marker). Subagents of the team flow get one line asking for a TodoWrite pl
 ## Acts only when you press
 
 A button or its key in the panel: it sends your typed text, a reply button's text or a fixed request (clean up
-worktrees, after a second press within 5 seconds) as your message, runs the app's commit, PR or merge prompt, approves
-or rejects a permission request, calls the app's `dismiss_task` or `archive_session` (this session only), stops a turn,
+worktrees, after a second press within 5 seconds) as your message, runs the app's commit, PR or merge prompt, rejects
+a permission request (the panel never approves one: Approve in chat opens the session's chat), calls the app's `dismiss_task` or `archive_session` (this session only), stops a turn,
 opens an image in Preview, or opens that session's chat in the Claude app (`/usr/bin/open` with a
 `claude://claude.ai/epitaxy/local_<id>` link built from the app's own record). "▸ Start in its chat" opens it too,
 starting nothing itself and only leaving its line in that session's empty prompt box, never sent. "How to update" opens

@@ -33,8 +33,8 @@ the old picture, and the panel looks frozen. To avoid that, the panel drops deta
 7. Chat rows, down to one.
 8. Last, a short panel: the header, a line saying it holds too much to show right now, and the first three requests.
 
-Through steps 1 to 7 the list always keeps working: you can still choose a session there, approve, reject and send
-messages. Even the short panel of step 8 keeps Approve and Reject (keys A and R) for the first
+Through steps 1 to 7 the list always keeps working: you can still choose a session there, reject (or open the chat to approve) and
+send messages. Even the short panel of step 8 keeps Approve in chat and Reject (keys A and R) for the first
 three requests. Offices that are only in the list (idle, asleep) do not count toward these steps. Fewer sessions on
 the floor (close them, or hide them with `/agentville refresh`), a different panel width or fewer pictures in the open
 chat bring the detail back by itself.

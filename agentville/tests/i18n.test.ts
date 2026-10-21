@@ -54,7 +54,7 @@ test('the field takes its group heading from the pane', () => {
 
 test('the spec copy is in the table word for word, and the card tour keys are gone', () => {
   const k = (key: Key) => STRINGS[key]
-  expect(k('tour.despacho.say')).toEqual(['Si alguien necesita tu OK, pasa primero por mi escritorio y luego camina a tu despacho; arriba sale este aviso. Pulsa Ver y aprueba con A, rechaza con R.', 'When someone needs your OK they stop at my desk first, then walk to your desk and this banner shows up. Press Open, then A approves and R rejects.'])
+  expect(k('tour.despacho.say')).toEqual(['Si alguien necesita tu OK, pasa primero por mi escritorio y luego camina a tu despacho; arriba sale este aviso. Pulsa Ver: R rechaza y A abre el chat para aprobar.', 'When someone needs your OK they stop at my desk first, then walk to your desk and this banner shows up. Press Open: R rejects, A opens the chat to approve.'])
   expect([k('tour.screen.say'), k('staff.sec')]).toEqual([['Esta pantalla dice cuánto contexto lleva y cuánto cuesta. Al terminar el recorrido, haz clic en ella para abrir la tarjeta; un clic en otro sitio la cierra.', 'This screen shows how much context is used and what it costs. After the tour, click it to open the card; a click anywhere else closes it.'], ['Gem · Secretaria', 'Gem · Secretary']])
   // the usage card opens on a click: no user-facing string speaks of hovering
   for (const [key, [es, en]] of Object.entries(STRINGS)) expect([key, /hover|pasa el mouse|al pasar/i.test(es + en)]).toEqual([key, false])

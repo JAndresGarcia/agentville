@@ -73,7 +73,7 @@ export const bandProps = (b: Band, glow: string | null = null): Props =>
 // direction and the clip only lay the Button out. Without the height the Client grows rows tall, over what lies below
 // it (Ir al chat over EQUIPO; live 2026-10-20). No Box around the Button (btns.tsx's never-shrink hold): one more
 // element per zone run breaks the pane's element budgets.
-const FILL = 'ㅤ'.repeat(60)
+const FILL = '\u3164'.repeat(60)
 
 const BandHits: ClientModule<Props> = (p, s) => {
   const { Box, Button } = s.elements

@@ -39,7 +39,7 @@ skipped.
 - The Tour button in the panel's header opens it again at step 1.
 - The tour never covers a waiting approval: while someone waits for your OK, the real "N waiting" strip stays above
   the map and its Open leaves the tour for that request. On the tour's Your desk step a sample of that strip (with
-  Open; then A approves and R rejects on the card) shows only while nobody waits.
+  Open; then R rejects and A opens the chat to approve, on the card) shows only while nobody waits.
 - With the panel focused, S goes on (Start on the last step), T goes back and X skips. The arrow keys cannot be used,
   as the desktop accepts only a letter or a digit as a button's key. These keys are the same in both languages.
 
@@ -154,7 +154,8 @@ Under the map are the list and the detail.
   leaves the list within about a minute, and comes back if you unarchive it.
 - **The detail**: the chosen session with its team (every agent has a name and the face it has on the map; a click
   on the big face next to the session's name opens its chat, when it has a chat link), its permission requests with
-  Approve and Reject (keys A and R), and tabs for the conversation (bubbles in the colour of
+  Approve in chat and Reject (keys A and R; the panel never approves: Approve in chat opens the chat where Claude
+  asks), and tabs for the conversation (bubbles in the colour of
   each speaker's shirt, plus the plan card), the plan and the steps.
 
 A message's images sit in one row of small thumbnails; a click opens one. With many large images in view, the
@@ -190,7 +191,7 @@ start: use ↑ for the start and ↓ for the end.
 When someone waits for you, an amber strip above the map says so: "N waiting", the first one as
 "<name> (<office>): <what it asks>" cut with an ellipsis, and Open, which opens it. The whole strip takes the
 click; when the Lead waits only on suggested sessions, Open shows their notes card. The strip answers nothing itself,
-since its text may be cut: Approve and Reject, and the keys A and R, are on the request's card, which shows the
+since its text may be cut: Approve in chat and Reject, and the keys A and R, are on the request's card, which shows the
 command whole. When nobody waits the header says nothing.
 
 ### Questions and suggested sessions

@@ -39,7 +39,7 @@ function serve(on: On, list: Beat[], answer: (e: Record<string, unknown>) => unk
   const store: Record<string, unknown> = { 'intro-done': true, lang: 'es' } // these tests read the Spanish copy; English is the default
   on('store.set', ($, e) => { store[e.key] = e.value; return { value: undefined } })
   const holds: Record<string, () => Promise<void>> = {} // a key's next read waits on this
-  on('store.get', async ($, e) => { const h = holds[e.key]; if (h) { delete holds[e.key]; await h() } return { value: store[e.key] } })
+  on('store.get', async ($, e) => { const ht = holds[e.key]; if (ht) { delete holds[e.key]; await ht() } return { value: store[e.key] } })
   on('store.delete', ($, e) => { delete store[e.key]; return { value: undefined } })
   const toasts: string[] = []
   on('ui.toast', ($, e) => { toasts.push(e.text); return { value: undefined } })
@@ -607,7 +607,7 @@ const textAck = (x: Awaited<ReturnType<typeof offering>>) => x.acks()['text:s-te
 
 test('AZ executor: a signed fillText writes its text once in the empty box, by append, control and format characters dropped, and acks filled; nothing is sent', async ($, on) => {
   const x = await offering($, on)
-  const c = await textOrder(x, '/review\u0007 7‮\nmás')
+  const c = await textOrder(x, '/review\u0007 7\u202e\nmás')
   await x.mail(c)
   await until(x.clock, () => !!textAck(x))
   expect([textAck(x)!.n, textAck(x)!.r, x.fills, x.draft.text]).toEqual([c.n, 'filled', [{ text: '/review 7 más', mode: 'append' }], '/review 7 más'])

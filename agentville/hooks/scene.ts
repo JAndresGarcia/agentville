@@ -61,10 +61,10 @@ export const shade = (hex: string, f: number) => {
   const v = parseInt(hex.slice(1), 16)
   return '#' + [(v >> 16) & 255, (v >> 8) & 255, v & 255].map((c) => Math.max(0, Math.min(255, Math.round(c * f))).toString(16).padStart(2, '0')).join('')
 }
-function box(x: number, y: number, z: number, w: number, d: number, h: number, top: string, left: string, right: string) {
-  return poly([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + h], [x, y + d, z + h]], left)
-    + poly([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + h], [x + w, y, z + h]], right)
-    + poly([[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]], top)
+function box(x: number, y: number, z: number, w: number, d: number, ht: number, top: string, left: string, right: string) {
+  return poly([[x, y + d, z], [x + w, y + d, z], [x + w, y + d, z + ht], [x, y + d, z + ht]], left)
+    + poly([[x + w, y, z], [x + w, y + d, z], [x + w, y + d, z + ht], [x + w, y, z + ht]], right)
+    + poly([[x, y, z + ht], [x + w, y, z + ht], [x + w, y + d, z + ht], [x, y + d, z + ht]], top)
 }
 const outlined = (inner: string) => `<g stroke="${shade(PAL.outline, 1.4)}" stroke-width=".8" stroke-linejoin="round">${inner}</g>`
 
@@ -250,12 +250,12 @@ export const FAM_MAX = 3
 // A team office's block comes as its size in cells [w, h]; its rooms are then all its cells, row by row.
 export function unitRooms(ks: (number | [number, number])[]): number[][][] {
   if (ks.every((k) => !k)) return isleRooms(ks.length).map((q) => [q])
-  const size = ks.map((k) => (Array.isArray(k) ? k : k === 0 ? [1, 1] : k === 1 ? [2, 1] : [2, 2])), n = size.reduce((a, [w, h]) => a + w! * h!, 0)
+  const size = ks.map((k) => (Array.isArray(k) ? k : k === 0 ? [1, 1] : k === 1 ? [2, 1] : [2, 2])), n = size.reduce((a, [w, ht]) => a + w! * ht!, 0)
   const r = Math.max(Math.ceil(n / PER_ROW), ...size.map((q) => q[1]!)), c = Math.min(PER_ROW, Math.max(Math.ceil(n / r), 2))
   const gi = Math.max(1, Math.round((W - ISLE_W * c) / (c + 1))), left = Math.floor((W - c * ISLE_W - (c - 1) * gi) / 2)
   const used = new Set<string>(), cell = (col: number, row: number) => { const x = left + col * (ISLE_W + gi), y = ISLES_Y + row * STEP_Y; return [x, y, x + ISLE_W, y + ISLE_D] }
   return ks.map((k, i) => {
-    const [w, h] = size[i] as [number, number], all = Array.from({ length: w * h }, (_, j) => [j % w, Math.floor(j / w)])
+    const [w, ht] = size[i] as [number, number], all = Array.from({ length: w * ht }, (_, j) => [j % w, Math.floor(j / w)])
     const fits = (col: number, row: number) => all.every(([dx, dy]) => !used.has(`${col + dx!},${row + dy!}`))
     let at = 0
     while (!fits(at % (c - w + 1), Math.floor(at / (c - w + 1)))) at++
@@ -536,7 +536,7 @@ const LIVE_MS = 12 * 3600000, GONE_MS = 60000
 // app, leaves.
 const GONE_FOR_GOOD = new Set(['clear', 'resume', 'logout', 'prompt_input_exit'])
 export const isLive = (b: Beat, now: number) => !b.archived && (b.ended ? !GONE_FOR_GOOD.has(b.endReason ?? 'other') && now - b.at < SLEEP_MS : now - b.at < LIVE_MS)
-const hash = (t: string) => [...t].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+const hash = (t: string) => [...t].reduce((ht, c) => (ht * 31 + c.charCodeAt(0)) >>> 0, 7)
 /** An empty floor: the lobby and your office, no islands yet. */
 export const emptyWorld = (now: number) => worldFromBeats(null, [], now)
 // A heartbeat's question and suggested sessions, checked again as read: any program can write a beat file, and a reply's
@@ -636,9 +636,9 @@ export function worldFromBeats(prev: AgentvilleWorld | null, beats: Beat[], now:
     us.forEach((u, i) => {
       const plan = plans.get(u[0]!.id)
       if (u.length > 1 || !plan || famIds.has(u[0]!.id)) return
-      const h = Math.min(plan.length, TEAM_ROWS) // a cell row per row of desks: 2x1, 2x2 or 2x3 cells
-      if (total - 1 + 2 * h > MAX_CELLS) return // shortcut: a floor this full keeps role desks for later team offices; upgrade with a wider grid
-      ks[i] = [2, h]; total += 2 * h - 1
+      const ht = Math.min(plan.length, TEAM_ROWS) // a cell row per row of desks: 2x1, 2x2 or 2x3 cells
+      if (total - 1 + 2 * ht > MAX_CELLS) return // shortcut: a floor this full keeps role desks for later team offices; upgrade with a wider grid
+      ks[i] = [2, ht]; total += 2 * ht - 1
     })
     const rooms = unitRooms(ks)
     us.forEach((u, i) => (Array.isArray(ks[i]) ? teamUp(u[0]!, blockOf(rooms[i]!), plans.get(u[0]!.id)!) : u.forEach((d, j) => { d.room = rooms[i]![j]! })))
@@ -649,10 +649,10 @@ export function worldFromBeats(prev: AgentvilleWorld | null, beats: Beat[], now:
   live.forEach((b) => { const m = metasOf(b.metas); if (m.length) byDept.get(b.id)!.metas = m })
   const agents: AgentvilleAgent[] = []
   const add = (b: Beat, id: string, role: AgentvilleRole, x: BeatAgent, key: string, visit?: AgentvilleVisit) => {
-    const old = prev?.agents.find((a) => a.id === id), h = hash(id)
+    const old = prev?.agents.find((a) => a.id === id), ht = hash(id)
     agents.push({
       id, dept: b.id, role, state: x.state, activity: x.activity, cmd: x.cmd, ...(x.cmd && x.tool ? { tool: x.tool } : {}), req: x.req ?? null, ...(x.cmd && Number.isFinite(x.held) && Number.isFinite(x.since) ? { held: Math.min(x.held!, x.since + HELD_MAX, now + HELD_MAX) } : {}), answer: x.answer, said: x.said, notes: x.notes, goal: x.goal, tokens: x.tokens, model: x.model, since: x.since, calledUntil: 0, ...(key !== MAIN ? { aid: key, kind: x.kind } : {}),
-      hair: HAIRS[h % HAIRS.length]!, skin: SKINS[(h >>> 3) % SKINS.length]!,
+      hair: HAIRS[ht % HAIRS.length]!, skin: SKINS[(ht >>> 3) % SKINS.length]!,
       x: old?.x ?? 0, y: old?.y ?? 0, facing: old?.facing ?? 'fl', posture: old?.posture ?? 'stand', lobbySpot: old?.lobbySpot ?? -1, walk: old?.walk ?? null, ...(visit ?? ended(old?.visit, now) ? { visit: visit ?? ended(old?.visit, now) } : {}),
     })
   }
@@ -1350,7 +1350,7 @@ export function tourTargets(view: AgentvilleWorld, now: number, focus?: string):
   const label = t('scene.lobby'), [px, py] = P(...LOBBY_PLAQUE), pw = label.length * 7.4 + 16 // the plaque, as houseLayer draws it
   // The lobby's fixed pieces: the TV corner, the game cushions, both sofas with the coffee table, the coffee corner
   // (counter, machine and cooler), and whoever rests on a chat or game spot. None of it reaches Producto's room.
-  const block = (x0: number, y0: number, x1: number, y1: number, z: number) => bbox([0, z].flatMap((h) => [P(x0, y0, h), P(x1, y0, h), P(x1, y1, h), P(x0, y1, h)].map(pt)))!
+  const block = (x0: number, y0: number, x1: number, y1: number, z: number) => bbox([0, z].flatMap((ht) => [P(x0, y0, ht), P(x1, y0, ht), P(x1, y1, ht), P(x0, y1, ht)].map(pt)))!
   const resting = w.agents.filter((a) => LOBBY_SPOTS.some((q) => q.kind !== 'coffee' && Math.hypot(q.x - a.x, q.y - a.y) < 0.05)).map((a) => a.id)
   const tg = {
     island, team,
@@ -1419,7 +1419,7 @@ export const SHIRTS: Record<AgentvilleRole | 'me', string> = { jefe: OUTFITS.jef
  * `box`, the face sits in its own small rounded box (6:5), drawn in the picture so the pane adds no padding around it.
  */
 export function faceSvg(role: AgentvilleRole | 'me', agentId: string, width = 34, box?: { fill: string; stroke: string }): string {
-  const h = hash(agentId), col = role === 'me' ? colors('me', '#2b2b2b', '#d8a47f', '#f2a93b') : colors(role, HAIRS[h % HAIRS.length]!, SKINS[(h >>> 3) % SKINS.length]!, '#f2a93b')
+  const ht = hash(agentId), col = role === 'me' ? colors('me', '#2b2b2b', '#d8a47f', '#f2a93b') : colors(role, HAIRS[ht % HAIRS.length]!, SKINS[(ht >>> 3) % SKINS.length]!, '#f2a93b')
   const head = rowsToPaths(torsoRows(role, false).slice(0, 15), 0, col)
   if (!box) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 0 20 15" width="${width}" height="${Math.round((width * 15) / 20)}" shape-rendering="crispEdges">${head}</svg>`
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -3 24 20" width="${width}" height="${Math.round((width * 20) / 24)}"><rect x="-11.6" y="-2.6" width="23.2" height="19.2" rx="3.2" fill="${box.fill}" stroke="${box.stroke}" stroke-width="0.7"/><g shape-rendering="crispEdges">${head}</g></svg>`
@@ -1591,8 +1591,8 @@ export function agentsLayer(w0: AgentvilleWorld, now: number, dt: Detail = FULL)
   settle(w, now) // a walk that already ended is drawn at rest, not as a frozen animation
   // Producto's people sit still at their table, each with its name; the secretaria moves like anyone.
   const prod = w.staff ? PROD_SEATS.map(([x, y, facing, name, role, lift], i): [AgentvilleAgent, string, number] => {
-    const id = `staff-prod-${i}`, h = hash(id)
-    return [{ ...w.staff!.sec, id, role, x, y, facing, posture: 'sit', walk: null, visit: undefined, state: 'leyendo', hair: HAIRS[h % HAIRS.length]!, skin: SKINS[(h >>> 3) % SKINS.length]! }, t(name), lift]
+    const id = `staff-prod-${i}`, ht = hash(id)
+    return [{ ...w.staff!.sec, id, role, x, y, facing, posture: 'sit', walk: null, visit: undefined, state: 'leyendo', hair: HAIRS[ht % HAIRS.length]!, skin: SKINS[(ht >>> 3) % SKINS.length]! }, t(name), lift]
   }) : []
   const all: [AgentvilleAgent, string | null, number][] = [...w.agents.map((a): [AgentvilleAgent, null, number] => [a, null, 0]), ...(w.staff ? [[w.staff.sec, null, 0] as [AgentvilleAgent, null, number]] : []), ...prod]
   const order = all.sort(([a], [b]) => { const p = posAt(a, now), q = posAt(b, now); return p.x + p.y - (q.x + q.y) })

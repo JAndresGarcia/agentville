@@ -603,7 +603,7 @@ const ownerCase = (now: number) => {
   const idle = ['i0', 'i1'].map((k, i) => { const b = newBeat(k, `Idle ${k}`, now - 20 * 60000 - i); setAgent(b, MAIN, b.at, { state: 'inactivo', activity: 'x' }); return b })
   tops[0]!.chat = [
     { who: 'claude', text: 'The map is drawn again.' },
-    { who: 'tú', text: 'look at these', pics: SHOTS.map(([, w, h], i) => ({ file: `shot${i}`, w, h, orig: `/home/test/shot${i}.png` })) },
+    { who: 'tú', text: 'look at these', pics: SHOTS.map(([, w, ht], i) => ({ file: `shot${i}`, w, h: ht, orig: `/home/test/shot${i}.png` })) },
     { who: 'claude', text: 'I see three screenshots.' },
   ]
   return [...tops, ...kids, ...waits, ...idle]
@@ -660,5 +660,5 @@ test('BC: the strip under the map never says offices take clicks and that there 
   expect(mapStrip(plain, -1, 2)).toBe('Simple map. · There are too many offices to click on the map. Pick from the list. · 2 offices quiet, in the list')
   expect(mapStrip(plain, 2)).toBe('Simple map: floors and desks; offices still take clicks.') // clicked whole: the plain map says so itself
   expect(mapStrip({ plain: false, people: false, decor: false }, -1)).toBe('The people do not fit on the map right now; they are in the list. · There are too many offices to click on the map. Pick from the list.')
-  expect(mapStrip({ plain: false, people: true, decor: true }, 0)).toBe(' ') // every person clickable: the row kept, blank
+  expect(mapStrip({ plain: false, people: true, decor: true }, 0)).toBe('\u00a0') // every person clickable: the row kept, blank
 })

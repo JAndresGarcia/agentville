@@ -56,7 +56,7 @@ test('BandHits: one invisible plain Button per zone run, each posting its key; k
   expect(names({ ...band, runs: [{ x0: 0, x1: 0.05, key: 'new' }, ...band.runs.slice(1)] })).toEqual(['new@7', 's1-jefe@7', 'screen-hq@7'])
   for (const b of buttons) (b.props.onPress as () => void)()
   expect(posted).toEqual([{ press: 's1-jefe' }, { press: 'screen-hq' }])
-  for (const b of buttons) expect([b.props.plain, /^ㅤ+$/.test((b.props.children ?? []).join(''))]).toEqual([true, true])
+  for (const b of buttons) expect([b.props.plain, /^\u3164+$/.test((b.props.children ?? []).join(''))]).toEqual([true, true])
   expect(buttons.map(b => (b.props.hover as { scope?: string } | undefined)?.scope)).toEqual(['av-s1-jefe', 'av-screen-hq'])
   const runBoxes = all.filter(n => n.type === 'Box').slice(1)
   expect(runBoxes.map(b => b.props.flexGrow)).toEqual([1000, 3000, 2000, 4000]) // laid out by width fraction

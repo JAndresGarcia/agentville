@@ -414,13 +414,13 @@ test('AZ: → at the end with the menu open fills the pick as Tab does; mid-text
   expect(g.state()).toMatchObject({ text: '/re', at: 3 })
   g.key('right') // now at the end: fills
   expect(g.state().text).toBe('/review ')
-  const h = mount()
-  h.pointer({ type: 'down', x: 2, y: 0, button: 'left' })
-  for (const k of 'hola') h.key(k)
-  h.key('left')
-  h.key('right')
-  h.key('right') // no menu: at the end it stays
-  expect(h.state()).toMatchObject({ text: 'hola', at: 4 })
+  const ht = mount()
+  ht.pointer({ type: 'down', x: 2, y: 0, button: 'left' })
+  for (const k of 'hola') ht.key(k)
+  ht.key('left')
+  ht.key('right')
+  ht.key('right') // no menu: at the end it stays
+  expect(ht.state()).toMatchObject({ text: 'hola', at: 4 })
   const m = mount() // with shift or meta at the end, → never fills
   m.pointer({ type: 'down', x: 2, y: 0, button: 'left' })
   for (const k of '/re') m.key(k)

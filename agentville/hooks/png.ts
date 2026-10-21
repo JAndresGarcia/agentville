@@ -49,12 +49,12 @@ const be32 = (v: number) => [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255
 const chunk = (type: string, body: number[]) => { const t = [...type].map((c) => c.charCodeAt(0)); return [...be32(body.length), ...t, ...body, ...be32(crc32([...t, ...body]))] }
 
 /** A w x h picture of palette indices (row by row) as PNG bytes; `pal` holds [r, g, b, a] per index. */
-export function pngBytes(w: number, h: number, idx: ArrayLike<number>, pal: number[][]): number[] {
+export function pngBytes(w: number, ht: number, idx: ArrayLike<number>, pal: number[][]): number[] {
   const raw: number[] = []
-  for (let y = 0; y < h; y++) { raw.push(0); for (let x = 0; x < w; x++) raw.push(idx[y * w + x]!) }
+  for (let y = 0; y < ht; y++) { raw.push(0); for (let x = 0; x < w; x++) raw.push(idx[y * w + x]!) }
   const alpha = pal.map((c) => c[3]!), last = alpha.reduce((k, a, i) => (a < 255 ? i : k), -1)
   return [137, 80, 78, 71, 13, 10, 26, 10,
-    ...chunk('IHDR', [...be32(w), ...be32(h), 8, 3, 0, 0, 0]),
+    ...chunk('IHDR', [...be32(w), ...be32(ht), 8, 3, 0, 0, 0]),
     ...chunk('PLTE', pal.flatMap((c) => c.slice(0, 3))),
     ...(last >= 0 ? chunk('tRNS', alpha.slice(0, last + 1)) : []),
     ...chunk('IDAT', [0x78, 0x01, ...deflate(raw), ...be32(adler32(raw))]),

@@ -4,8 +4,8 @@
 
 Agentville is a pixel-art office for your Claude Code agents, as a Claude Code desktop mod. Each session is an office
 with its team: the Lead (the session's main agent) and its subagents at their desks. Idle agents rest in the public
-lounge, and agents that need your OK walk to your desk and wait in line. From the same panel you approve, answer and
-message every session. The plugin id is `agentville@jandresgarcia`.
+lounge, and agents that need your OK walk to your desk and wait in line. From the same panel you reject, answer and
+message every session, and one press takes you to the chat where you approve. The plugin id is `agentville@jandresgarcia`.
 
 The panel speaks English or Spanish: pick the language in the tour's first step, or with `/agentville lang es|en`.
 
@@ -62,8 +62,9 @@ The Tour button in the panel's header runs the tour again. More in
 1. **See every session at work.** Each session is an office with its team, its plan board and a usage
    screen (spend, context, tool calls). Click an agent to see its plan, steps and conversation.
    [Using the panel](docs/using-the-panel.md).
-2. **Approve or reject from one desk.** Permission requests wait in line at your desk and on an amber "N waiting"
-   strip. Approve and Reject (keys A and R) answer them without switching sessions. [Messages and permission
+2. **See every permission request at one desk.** Permission requests wait in line at your desk and on an amber "N
+   waiting" strip. Reject (key R) answers one without switching sessions; Approve in chat (key A) opens that session's
+   chat, where you approve in Claude's own prompt. The panel never approves. [Messages and permission
    requests](docs/remote-control-and-mailbox.md#permission-requests).
 3. **Message and steer any session.** Send a message, paste an image, or stop a running turn; a `/command` runs only
    in the panel's own session, and for another one the panel types it into that session's empty prompt box for you to
@@ -119,7 +120,7 @@ To add a language (a code change today; open a pull request if you want it shipp
 1. In `agentville/hooks/i18n.ts`, add its code to `Lang` and `langOf`, add a third text to every pair in `STRINGS`,
    and make `t` pick it by index.
 2. In `agentville/hooks/register.tsx`, add the code to the `lang es|en` command and to the ES | EN switch in the
-   panel's header (the `['es', 'en']` lists), in `agentville/hooks/orders.ts` to the relay rule's markers, and in
+   panel's header (the `['es', 'en']` lists) and to the relay rule's markers (in the same file), and in
    `agentville/hooks/tour.ts` to the tour's language step.
 3. The tour's layout in `agentville/hooks/tourlayout.ts` was measured for Spanish and English: give the new
    language the English layout to start with, and check that its longer texts still fit.

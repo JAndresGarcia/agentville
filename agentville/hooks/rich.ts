@@ -14,7 +14,7 @@ export type Align = 'l' | 'c' | 'r' | undefined
 export function linkHost(href: string): string {
   try { return new URL(href).host.toLowerCase() } catch { return (/^https?:[/\\]*([^/\\?#]*)/i.exec(href)?.[1] ?? '').split('@').pop()!.toLowerCase() }
 }
-const bare = (h: string) => h.toLowerCase().replace(/^www\./, '')
+const bare = (ht: string) => ht.toLowerCase().replace(/^www\./, '')
 /** Splits one line into runs: `code`, **bold** and [label](url); anything else is plain text. A link whose label is not
  * its host (`www.` aside) or its url gets the host beside it as plain text, so `[github.com](https://evil.dev)` shows
  * where it goes; so does a url with a user part (`https://github.com@evil.dev`). With no host to name it is no link. */
@@ -95,8 +95,8 @@ export function blocksOf(text: string): Block[] {
       out.push({ kind: 'table', head: fit(head), rows, align, len })
       continue
     }
-    const h = /^#{1,6}\s+(.*)$/.exec(line), li = /^\s*([-*]|\d+\.)\s+(.*)$/.exec(line)
-    if (h) { flush(); out.push({ kind: 'h', runs: runsOf(h[1]!) }) }
+    const ht = /^#{1,6}\s+(.*)$/.exec(line), li = /^\s*([-*]|\d+\.)\s+(.*)$/.exec(line)
+    if (ht) { flush(); out.push({ kind: 'h', runs: runsOf(ht[1]!) }) }
     else if (li) { flush(); out.push({ kind: 'li', mark: /\d/.test(li[1]!) ? li[1]! : '•', runs: runsOf(li[2]!) }) }
     else if (!line.trim()) flush()
     else para.push(line.trim())

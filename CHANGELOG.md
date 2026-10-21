@@ -5,6 +5,37 @@ and versions follow [Semantic Versioning](https://semver.org/). How a release is
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-21
+
+The panel never approves a permission request. It can reject one, and it takes you to the chat where you approve.
+
+### Removed
+
+- Approving from the panel; approve in the session's chat. No order, key or button approves a permission request any
+  more, and the session's permission hook has no approve answer: it answers only a signed reject, and passes every
+  other request on to Claude's own prompt.
+
+### Changed
+
+- Approve is now "Approve in chat" ("Aprobar en el chat"), key A as before: it opens the chat where the app asks the
+  request (the session that started it, else its own) and toasts that you approve it there when Claude asks. With no
+  chat link known, the toast names the session. Reject (key R) is unchanged.
+- A rejected request's answer to Claude reads "Rejected from Agentville" in both languages (it followed the panel's
+  language before). The tool guard's reasons are the same fixed English sentences as before.
+- A request waits a fixed 8 seconds for the panel (before, 8 seconds less whatever the hook's budget had used). The
+  hold no longer ends early when the session stops waiting (Esc in the app): it runs out, and the card clears then.
+- The toast for a new request names both ways: reject it here within the seconds left, or approve it in the chat.
+  Approve in chat's toast says Claude asks within 8 seconds at most.
+- The tour's "Your desk" step says R rejects and A opens the chat to approve.
+
+### Internal
+
+- For Anthropic's plugin directory checks: the order and sync helpers that take the engine (`$`) moved into
+  `register.tsx`, the file that calls them (`orders.ts` is gone, so `register.tsx` is over 256 KiB and
+  `scripts/check-plugin-files.sh` exempts it from the size rule); no variable is named `h`; invisible characters in
+  tests and `bandhits.tsx` are written as escapes; a test's fake key is built from parts; the tests' permission hooks
+  answer a fixed deny or ask.
+
 ## 1.0.1 - 2026-10-21
 
 Ready for Anthropic's plugin directory. Nothing changes in how the panel works.

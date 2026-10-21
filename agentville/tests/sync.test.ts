@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
-import { diskOf, diskRootOf, isClean, isMod, syncTick, tailOf, versionAt, versionOf } from '../hooks/sync'
-import type { Io } from '../hooks/sync'
+import type { EngineInterface } from 'claude-code'
+import { diskRootOf, isMod, versionOf } from '../hooks/sync'
+import { diskOf, isClean, syncTick, tailOf, versionAt } from '../hooks/register'
 
 const HOME = '/Users/dev'
 const CACHE = `${HOME}/.claude/plugins/cache/`
@@ -33,7 +34,7 @@ function fake(files: Record<string, string>, opts: { dirty?: () => boolean; link
     fs: { list, read, stat },
     process: { run },
     command: { run: async (a: unknown) => { runs.push(a) } },
-  } as unknown as Io
+  } as unknown as EngineInterface
   return { $, runs, argvs, inits, files }
 }
 const mod = (root: string, beat = 'v1') => ({ [`${root}/hooks/beat.ts`]: beat, [`${root}/hooks/hooks.json`]: '{}', [`${root}/agents/builder.md`]: 'b', [`${root}/skills/flujo/SKILL.md`]: 's', [`${root}/.claude-plugin/plugin.json`]: '{"name":"agentville"}' })
@@ -87,7 +88,7 @@ test('isClean and tailOf run argv only, never a shell; tailOf reads only a regul
   expect(await tailOf(f.$, '/Users/dev/gone.jsonl')).toBe('')
   expect(f.argvs).toEqual([['/usr/bin/git', '--no-optional-locks', '-c', 'core.fsmonitor=false', 'status', '--porcelain', '--', '.'], ['/usr/bin/git', '--no-optional-locks', '-c', 'core.fsmonitor=false', 'status', '--porcelain', '--', '.'], ['/usr/bin/tail', '-c', '400000', '/Users/dev/.claude/projects/x/1.jsonl']])
   expect(f.inits[2]).toEqual({ timeoutMs: 5000 }) // a FIFO swapped in after the stat never holds the sync
-  const timedOut = { fs: { stat: async () => ({ kind: 'file' }) }, process: { run: async () => { throw new Error('timed out') } } } as unknown as Io
+  const timedOut = { fs: { stat: async () => ({ kind: 'file' }) }, process: { run: async () => { throw new Error('timed out') } } } as unknown as EngineInterface
   expect(await tailOf(timedOut, '/Users/dev/.claude/projects/x/1.jsonl')).toBe('') // a run that rejects (its timeout) reads as nothing
 })
 
@@ -98,8 +99,8 @@ test('diskOf: a dirty checkout does not count; a cache install needs no git', as
   const g = fake({ ...mod(old), ...mod(next, 'v2'), [`${HOME}/.claude/plugins/installed_plugins.json`]: JSON.stringify({ plugins: { 'agentville@jandresgarcia': [{ installPath: next }] } }) })
   const d = await diskOf(g.$, old, HOME)
   expect([d?.ver === (await versionAt(g.$, next)), d?.ver === (await versionAt(g.$, old)), d?.clean, g.argvs]).toEqual([true, false, true, []])
-  const h = fake(mod(REPO), { dirty: () => true }), v = (await versionAt(h.$, REPO))!
-  expect([await diskOf(h.$, REPO, HOME, v), h.argvs]).toEqual([{ ver: v, clean: true }, []]) // in sync: no git at all
+  const ht = fake(mod(REPO), { dirty: () => true }), v = (await versionAt(ht.$, REPO))!
+  expect([await diskOf(ht.$, REPO, HOME, v), ht.argvs]).toEqual([{ ver: v, clean: true }, []]) // in sync: no git at all
 })
 
 // AU item 7: installPath was checked as a string, so a link inside the cache could load a version from anywhere.
@@ -109,8 +110,8 @@ test('diskOf: a cache install whose installPath links out of the marketplace cac
   const g = fake({ ...mod(old), ...mod(next, 'v2'), ...mod(evil, 'v3'), ...inst }, { links: { [next]: evil } }) // readable as written too
   expect(await diskOf(g.$, old, HOME)).toBe(null)
   const inside = `${CACHE}jandresgarcia/agentville/0.2.0-real`
-  const h = fake({ ...mod(old), ...mod(inside, 'v2'), ...inst }, { links: { [next]: inside } }) // a link that stays inside counts, read where it lands
-  expect((await diskOf(h.$, old, HOME))?.ver).toBe((await versionAt(h.$, inside))!)
+  const ht = fake({ ...mod(old), ...mod(inside, 'v2'), ...inst }, { links: { [next]: inside } }) // a link that stays inside counts, read where it lands
+  expect((await diskOf(ht.$, old, HOME))?.ver).toBe((await versionAt(ht.$, inside))!)
 })
 
 // The listen loop as register.tsx runs it: one check every 20 s.
@@ -137,7 +138,7 @@ test('syncTick: in sync, a dirty checkout or an unreadable disk is not stuck', a
   expect(await loop(g, v1, 2)).toEqual([null, null])
   dirty = false
   expect(await loop(g, v1, 1)).toEqual([(await versionAt(g.$, REPO))!])
-  const h = fake({})
-  expect(await loop(h, v1, 1)).toEqual([null])
-  expect([f.runs, g.runs, h.runs]).toEqual([[], [], []])
+  const ht = fake({})
+  expect(await loop(ht, v1, 1)).toEqual([null])
+  expect([f.runs, g.runs, ht.runs]).toEqual([[], [], []])
 })

@@ -12,8 +12,8 @@ its known limits. The details live in [Privacy and files](docs/privacy-and-files
   fixed list of system programs, always by argv and never through a shell.
 - A panel in one session can steer another session only through signed orders in a local mailbox, and only in the ways
   listed under [What a panel can do in another session](#what-a-panel-can-do-in-another-session). That includes
-  approving or rejecting a permission request another session holds, when you press Approve or Reject (or the A or R
-  key) on its card.
+  rejecting a permission request another session holds, when you press Reject (or the R key) on its card. The panel
+  never approves: Approve in chat (or the A key) only opens the chat where Claude's own prompt asks you.
 - With the Agentville team flow chosen, the Lead and the approver merge or open pull requests only as the repository's
   rules or you allow, and deploy only when your own instructions or you say so.
 - Links in replies open in your browser only when you click them, and a link whose label is not its address shows
@@ -91,12 +91,11 @@ It can, when you press for it:
   session's main agent) question
   (the text Claude offered, shown before you press, or the app's fixed commit, PR or merge prompt).
 - Stop the running turn.
-- Approve or reject a permission request the session holds for the panel (about 8 seconds), and only when the whole
-  request fits on the card (300 characters), has no masked part and no hidden characters. If the command on the card
-  changed by the time the session gets your Approve, Approve does nothing and Claude asks you in the session; the panel
-  says so. In detail: an approval carries the SHA-256 of the command the card showed, signed with the order, and the
-  session allows only when it matches the command it holds; a mismatch, or an approval naming no command (an older
-  panel), approves nothing and rejects nothing. Questions and plan approvals are always answered in the session.
+- Reject a permission request the session holds for the panel (about 8 seconds), and only when the whole request fits
+  on the card (300 characters), has no masked part and no hidden characters. Nothing approves from the panel (since
+  1.1.0): the session's permission hook answers only a signed reject, with fixed words, and passes every other request
+  on to Claude's own prompt; Approve in chat opens that chat. Questions and plan approvals are always answered in the
+  session.
 - Dismiss a session that session suggested, or leave the "Start in its chat" line in its own empty prompt box (never
   sent).
 - Type text into its prompt box, only when that box is empty, and never send it: a `/command` you typed in the field
@@ -128,12 +127,12 @@ plugin store (the key), whether the path is relative or reached through a symlin
 
 - **The Bash guard is partial.** It matches spellings only: a command that reaches the store without naming it (a
   glob such as `st*`, a variable, `cd` and then a relative path) still runs and can read the key. A Grep started at
-  `~` or above also reaches the store. With the key, a program can sign orders for any session: approve a permission
-  request that session holds for the panel (for the command its card shows), type a prompt there, or leave a
+  `~` or above also reaches the store. With the key, a program can sign orders for any session: reject a permission
+  request that session holds for the panel (never approve one), type a prompt there, or leave a
   `/command` in its empty prompt box (never sent: it runs only if you press Enter there).
 - Anything running as you (MCP servers, other programs) can read the plugin store and the mod's folder. The folder is
   `chmod 700`, which keeps other users out, not your own programs.
-- A permission request answered from the panel can allow any tool except AskUserQuestion and ExitPlanMode, with the
+- A permission request rejected from the panel can be any tool's except AskUserQuestion and ExitPlanMode, with the
   checks above. Which agent a request belongs to is guessed by tool name, so when two agents of a session wait on
   the same tool at once, the panel may show the request under the wrong agent; the request and its answer are still
   the right ones.
