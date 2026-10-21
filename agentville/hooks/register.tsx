@@ -1437,34 +1437,8 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
 // directory accept annotated parameters. RegisterChecked at the end still checks register against Register.
 // @ts-expect-error untyped on purpose, see above
 export function register(on, options) {
-  const option = (options as { team_flow?: string } | undefined)?.team_flow
-  // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('prompt.compose', async ($, e, next) => {
-    const r = await next(e)
-    const text = flowRule(await flowNow($, option))
-    return { ...r, sections: [...r.sections, ...(text ? [{ id: 'agentville:team-flow', text, scope: 'session' as const }] : []), { id: 'agentville:relay', text: RELAY_RULE, scope: 'session' as const }] }
+  on('ui.render', { component: 'Pane', requestId: 'agentville' }, async ($, e) => {
+    const ui = $.ui.resolve(e)
+    return <ui.Box><ui.Client key="hits" module="./btns.tsx" props={{}} /></ui.Box>
   })
-
-
-
-
-  // Classic events carry the transcript's path; the title is read from it.
-
-  // What each agent does, from the session's own events. These only observe: they return `next`'s answer.
-  // Every row of the main conversation passes here as it is kept: Claude's text as it writes it, and your prompts.
-  // A background command's end arrives as a notification prompt; it closes that task on the board.
-  // With a team flow on (Agentville's or a skill), every subagent is asked for a plan it keeps current, so its desk shows
-  // how far it got (one without the task-list tool still gets an action plan drawn from its steps).
-  // The tool guard (guardOf) and the pane's hold of a permission request (heldDenied). Each answers only a fixed deny,
-  // written here; everything else passes on. Their parameter names are used nowhere else in this file, so the plugin
-  // directory can tell which event each passes on. The pane never approves: it rejects, or opens the session's chat.
-
-
-  // The pane's buttons (btns.tsx) and the click layers over the map and the tour (bandhits.tsx, `hits-<band>`) post the
-  // key pressed: see `pressed`. A key the last drawing did not give does nothing (an agent gone, an office closed).
-  // The message field (field.tsx) posts its draft as it changes, a selection to copy, and the text to send on Enter.
-  // A pane Button pressed closes an open usage card first, then does its own job (hotkeys go through `pressed`).
-
-
 }
-
