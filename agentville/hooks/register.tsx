@@ -68,6 +68,7 @@ export async function home($) { return (await $.env.get('HOME')) ?? '' }
 export function register(on, options) {
   on('ui.render', { component: 'Pane', requestId: 'agentville' }, async ($, e) => {
     const ui = $.ui.resolve(e)
+    const h0 = await home($)
     return <ui.Box><ui.Client key="hits" module="./btns.tsx" props={{}} /></ui.Box>
   })
 }
