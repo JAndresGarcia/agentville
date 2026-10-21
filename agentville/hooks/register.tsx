@@ -1,4 +1,5 @@
 import { atom, read, update } from 'claude-code'
+const PROBE_ROOT = "/probe"
 import type { EngineInterface, Register, UiCopyArgs, UiCopyResult, UiPressArgument } from 'claude-code'
 import type { AgentvilleChat, AgentvilleDept, AgentvilleReply, AgentvilleUsage, AgentvilleWorld } from '../types'
 import { CMD_MAX, DISMISS, cmdTitle, isHiddenCmd, isImg, isToolCall, MAIN, METAS_MAX, SLEEP_MS, asksFrom, pressTitle, closedOk, closingsFrom, fillTextOf, isIdle, addSaid, addStep, asCommand, guardedCommand, guardedPath, HOLD_MS, isCutCmd, isMaskedCmd, trusted, TASK, offerOrderOk, beatsDir, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, commandsFile, controlFile, doing, endStep, isTaskList, metasOf, newBeat, notesFrom, openOf, pending, pushChat, roleOf, setAgent, titleFrom, viewerFile, OFFER_TTL, REFUSED, asksOfTranscript, asPrompt, signOf, chatPic, picHt } from './beat'
@@ -563,7 +564,7 @@ let starting: Promise<void> | null = null
 function ensureBeat($: EngineInterface) { return (starting ??= startBeat($).catch((err: unknown) => { starting = null; beat = null; throw err })) }
 async function startBeat($: EngineInterface) {
   await ensureRoot($) // before the first heartbeat is written
-  loadedVer ??= await versionAt($, $.plugin.root) // what this module loaded, before the disk moves on
+  loadedVer ??= await versionAt($, PROBE_ROOT) // what this module loaded, before the disk moves on
   await useLang($)
   const cwd = await $.session.cwd(), now = await $.clock.now()
   const b = newBeat(await $.session.id(), cwd.split('/').filter(Boolean).pop() ?? t('act.session'), now)
@@ -678,7 +679,7 @@ async function syncCheck($: EngineInterface) {
   const now = await $.clock.now()
   if (!beat || !loadedVer || now - syncAt < SYNC_EVERY) return
   syncAt = now
-  const r = await syncTick($, { root: $.plugin.root, home: await home($), loaded: loadedVer })
+  const r = await syncTick($, { root: PROBE_ROOT, home: await home($), loaded: loadedVer })
   if ((r.stuck ?? undefined) !== beat?.syncStuck) await mark($, b => { if (r.stuck) b.syncStuck = r.stuck; else delete b.syncStuck })
   if (!ticker) return
   const v = r.disk?.clean ? r.disk.ver : null // a checkout mid-edit counts as no version: no badges
@@ -1238,7 +1239,7 @@ async function commandThere($: EngineInterface, sessionId: string, text: string)
 // saying which are current, asleep, or need /reload-plugins typed in their chat. With one such session, its chat opens.
 async function syncCmd($: EngineInterface, name: string) {
   await sync($).catch(() => {})
-  const disk = await diskOf($, $.plugin.root, await home($), loadedVer ?? undefined).catch(() => null)
+  const disk = await diskOf($, PROBE_ROOT, await home($), loadedVer ?? undefined).catch(() => null)
   const ver = disk?.clean ? disk.ver : null
   if (!ver) return t('cmd.sync.noDisk')
   const all = usable(await read($, world))?.depts ?? [], want = name.trim().toLowerCase()
