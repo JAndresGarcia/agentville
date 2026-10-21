@@ -63,12 +63,10 @@ export const filling = new Set<string>()
 export const elsewhere = new Set<string>()
 // Start and dismiss calls this session made, by tool_use id, until their results come back (closingsFrom).
 export const closing = new Map<string, [string, Closing]>()
-export async function home($) { return (await $.env.get('HOME')) ?? '' }
 
 export function register(on, options) {
   on('ui.render', { component: 'Pane', requestId: 'agentville' }, async ($, e) => {
     const ui = $.ui.resolve(e)
-    const h0 = await home($)
     return <ui.Box><ui.Client key="hits" module="./btns.tsx" props={{}} /></ui.Box>
   })
 }
