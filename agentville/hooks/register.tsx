@@ -36,14 +36,6 @@ import {
   DAY, WEEK, ALIVE_EVERY, DISK_KEY, DISK_LOCK, SLOW, GB, gbOf, sizeOf, judged,
 } from './pure'
 import type { AckR, OfferAck, Tour, FillR, SubOut, Act, Elsewhere, Out, Step, Fam, Grp, DiskCache } from './pure'
-export {
-  keyOf, ACK_WAIT, ARCHIVE_TOOL, CONSENT, hasItem, waitPatch, unwait, dropOffers, INTRO, HIDDEN_KEY, isReload,
-  withImages, EVERYWHERE, PERSON_ONLY, FLOW_KEY, skillName, flowRule, RELAY_RULE, relayOf, saidOf, APP_DIR,
-  deptNameIn, starterIn, aborted, dozing, OUTBOX_TTL, takenOf, tookOut, inClient, CELL_PX, BAND_PX, mapPx,
-  CARD_REF_PX, MAP_MAX_PX, mapDrawPx, kTok, bandCount, CLIENT_MAX, PAGE_CHARS, PAGE_NODES, PAGE_DEPTH, pageOf,
-  pageFits, ROW_H, LIST_MAX, RENDER_GAP, HEAVY_KB, PANE_ROWS,
-} from './pure'
-export type { AckR, Tour, FillR, SubOut, Act, Elsewhere, Out, Page } from './pure'
 // The pane's request id, written here where its hooks' filters name it.
 const PANE = 'agentville'
 // The pane's state: declared here, beside every read and update of it through `$`.
