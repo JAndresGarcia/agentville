@@ -1,9 +1,6 @@
 <p align="center">
-  <img src="agentville/icon.png" width="128" height="128" alt="Agentville icon: a pixel-art Lead at a desk with a laptop">
   <img src="docs/images/logo.png" width="456" height="100" alt="Agentville logo: Gem, the Secretary, in her blue cap and pink shirt beside the word Agentville in pixel letters">
 </p>
-
-# Agentville
 
 Agentville is a pixel-art office for your Claude Code agents, as a Claude Code desktop mod. Each session is an office
 with its team: the Lead (the session's main agent) and its subagents at their desks. Idle agents rest in the public
@@ -24,7 +21,8 @@ The panel speaks English or Spanish: pick the language in the tour's first step,
 
 Details: [Requirements](docs/install-and-update.md#requirements).
 
-## Install
+
+## <img src="agentville/icon.png" width="128" height="128" alt="Agentville icon: a pixel-art Lead at a desk with a laptop"> Install
 
 ```bash
 claude plugin marketplace add JAndresGarcia/agentville
