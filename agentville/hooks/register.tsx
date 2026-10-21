@@ -369,7 +369,7 @@ const drafts = new Map<string, string>()
 let sentCount = 0
 // Images you copied and attached to the next message, per session (files the pane saved from the clipboard), each with
 // its thumbnail for the composer (null when sips could not make one).
-const attached = new Map<string, { path: string; pic: Awaited<ReturnType<typeof thumb>> }[]>()
+const attached = new Map<string, { path: string; pic: ChatPic | null }[]>()
 const picCache = new Map<string, string>() // thumbnail file -> its base64 jpeg, the 40 last drawn
 let hitsKeep = { n: 0, rows: new Map<number, number>() }
 let drawTimes: number[] = [], msgTimes: number[] = []
@@ -1270,7 +1270,7 @@ async function outOf($: EngineInterface, sessionId: string, text: string, sent: 
   return { id: sessionId, o: { text: text || sent, sent, base: takenOf(d, sent), at: await $.clock.now(), ...(to ? { to } : {}) } }
 }
 // A send that failed puts its text back in the field (as a paste goes in) and its images back before any attached since.
-function unsend($: EngineInterface, sessionId: string, text: string, files: { path: string; pic: Awaited<ReturnType<typeof thumb>> }[]) {
+function unsend($: EngineInterface, sessionId: string, text: string, files: { path: string; pic: ChatPic | null }[]) {
   if (text) pasted.set(sessionId, { n: ++pasteN, text }) // replaces a paste the field has not taken yet: the failed message wins
   if (files.length) attached.set(sessionId, [...files, ...(attached.get(sessionId) ?? [])])
   $.ui.invalidate('ui.render')
