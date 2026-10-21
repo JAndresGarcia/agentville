@@ -1665,18 +1665,18 @@ export function register(on, options) {
   // written here; everything else passes on. Their parameter names are used nowhere else in this file, so the plugin
   // directory can tell which event each passes on. The pane never approves: it rejects, or opens the session's chat.
   // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('tool.check', async (guardCap, checkEvent, checkNext) => {
-    const why = await guardOf(guardCap, checkEvent.tool, checkEvent.input)
+  on('tool.check', async ($, e, next) => {
+    const why = await guardOf($, e.tool, e.input)
     if (why === 'command') return { decision: 'deny', reason: 'The Agentville store holds the key of its mailboxes; commands may not name it.' }
     if (why === 'store') return { decision: 'deny', reason: 'The Agentville store holds the key of its mailboxes; it is not for tools.' }
     if (why === 'folder') return { decision: 'deny', reason: 'Only the Agentville panel and its sessions write ~/.claude/agentville.' }
     if (why === 'failed') return { decision: 'deny', reason: 'Agentville could not check this path; it stays closed.' }
-    return checkNext(checkEvent)
+    return next(e)
   })
   // @ts-expect-error untyped hook parameters: see the shortcut above register
-  on('classic.PermissionRequest', async (holdCap, permEvent, permNext) => {
-    if (await heldDenied(holdCap, permEvent.tool_name, permEvent.tool_input).catch(() => false)) return { decision: { behavior: 'deny', message: 'Rejected from Agentville' } }
-    return permNext(permEvent)
+  on('classic.PermissionRequest', async ($, e, next) => {
+    if (await heldDenied($, e.tool_name, e.tool_input).catch(() => false)) return { decision: { behavior: 'deny', message: 'Rejected from Agentville' } }
+    return next(e)
   })
 
   // @ts-expect-error untyped hook parameters: see the shortcut above register
