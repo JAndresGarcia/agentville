@@ -61,61 +61,7 @@ export const filling = new Set<string>()
 // Suggestions whose session did not take a press (no answer, a failure, an unexpected reply, or asleep): their note says
 // "↗ Ir al chat". Pruned on every render.
 export const elsewhere = new Set<string>()
-export async function doneOffers($: EngineInterface): Promise<Record<string, number>> {
-  return marksOf(await $.store.get(OFFERS_DONE).catch(() => null))
-}
-/** Writes `marks` back under `key`, less those past OFFER_TTL, with task id `id` marked now or, `drop`, unmarked. */
-async function putMark($: EngineInterface, key: string, marks: Record<string, number>, id: string, drop = false) {
-  const now = await $.clock.now()
-  await $.store.set(key, Object.fromEntries([...Object.entries(marks).filter(([k, at]) => k !== id && now - at < OFFER_TTL), ...(drop ? [] : [[id, now]])]))
-}
-/** Marks a suggested session started or dismissed (task id) in the shared store, dropping marks past OFFER_TTL. */
-export async function offerDone($: EngineInterface, id: string) { return putMark($, OFFERS_DONE, await doneOffers($), id) }
-export async function offerAcks($: EngineInterface): Promise<Record<string, OfferAck>> {
-  const v = await $.store.get(OFFER_ACKS).catch(() => null)
-  return Object.fromEntries(Object.entries(v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}).filter((e): e is [string, OfferAck] => {
-    const x = e[1] as Partial<OfferAck> | null
-    return !!x && typeof x === 'object' && typeof x.n === 'number' && typeof x.at === 'number' && ACK_RS.includes(x.r) && (x.why === undefined || typeof x.why === 'string')
-  }))
-}
-/** Writes this session's answer to a dismiss order, dropping acks past ACK_KEEP. */
-export async function ackOffer($: EngineInterface, id: string, a: Omit<OfferAck, 'at'>) {
-  const now = await $.clock.now(), all = await offerAcks($)
-  await $.store.set(OFFER_ACKS, Object.fromEntries([...Object.entries(all).filter(([k, x]) => k !== id && now - x.at < ACK_KEEP), [id, { ...a, at: now }]]))
-}
-// Start and dismiss calls this session made, by tool_use id, until their results come back (closingsFrom).
-export const closing = new Map<string, [id: string, kind: Closing]>()
-let toolNames: { at: number; names: string[] } | null = null
-export async function toolsNow($: EngineInterface, now: number) {
-  if (!toolNames || now - toolNames.at > 60000) toolNames = { at: now, names: (await $.tool.list().catch(() => [])).map(x => x.name) }
-  return toolNames.names
-}
-export async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
-export async function readJson($: EngineInterface, path: string): Promise<T | null> {
-  try { return JSON.parse(await $.fs.read(path)) as T } catch { return null }
-}
-// A mailbox's orders; a missing or malformed file has none.
-export async function ordersAt($: EngineInterface, path: string): Promise<unknown[]> {
-  const cmds = (await readJson($, path))?.cmds
-  return Array.isArray(cmds) ? cmds : []
-}
-export async function hiddenOf($: EngineInterface): Promise<Record<string, number>> {
-  const v = await $.store.get(HIDDEN_KEY).catch(() => null)
-  return v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).filter((e): e is [string, number] => typeof e[1] === 'number')) : {}
-}
-// The pane reads every live session's transcript itself: its title, and for a session on an older copy of the mod (a
-// beat with no `mod`) its question and suggested sessions. Found once per id (looked for again every 30 s while
-// missing), looked at at most every 3 s (every 30 s when only its title is needed), read (its last 400 KB, argv only) only when its size or time changed.
-type Transcript = { path: string | null; at: number; sig: string; name: string | null; asks: Pick<Beat, 'ask' | 'offers'> | null }
-export const transcripts = new Map<string, Transcript>()
-const ARCHIVED_EVERY = 60000, ARCHIVED_MAX = 60
-export let archivedAt = -Infinity, archivedIds = new Set<string>()
-export async function readKey($: EngineInterface) {
-  const had = await $.store.get(MAILBOX_KEY)
-  return typeof had === 'string' && had ? had : null
-}
 
-// Puts an order in a session's mailbox. Only the pane writes mailboxes, so a read-modify-write is safe.
 export function register(on, options) {
   on('ui.render', { component: 'Pane', requestId: 'agentville' }, async ($, e) => {
     const ui = $.ui.resolve(e)
