@@ -98,12 +98,12 @@ export async function toolsNow($: EngineInterface, now: number) {
   return toolNames.names
 }
 export async function home($: EngineInterface) { return (await $.env.get('HOME')) ?? '' }
-export async function readJson<T>($: EngineInterface, path: string): Promise<T | null> {
+export async function readJson($: EngineInterface, path: string): Promise<T | null> {
   try { return JSON.parse(await $.fs.read(path)) as T } catch { return null }
 }
 // A mailbox's orders; a missing or malformed file has none.
 export async function ordersAt($: EngineInterface, path: string): Promise<unknown[]> {
-  const cmds = (await readJson<{ cmds?: unknown }>($, path))?.cmds
+  const cmds = (await readJson($, path))?.cmds
   return Array.isArray(cmds) ? cmds : []
 }
 export async function hiddenOf($: EngineInterface): Promise<Record<string, number>> {
@@ -571,7 +571,7 @@ async function startBeat($: EngineInterface) {
   // Where the app keeps the transcript; the classic events below say it too, but a session started from another
   // session may never get them.
   transcript ||= `${await home($)}/.claude/projects/${cwd.replace(/[^a-zA-Z0-9]/g, '-')}/${b.id}.jsonl`
-  carryOver(b, await readJson<Beat>($, `${beatsDir(await home($))}/${b.id}.json`))
+  carryOver(b, await readJson($, `${beatsDir(await home($))}/${b.id}.json`))
   if (hasItem(b, now) && b.agents[MAIN]?.state !== 'trabajando') setAgent(b, MAIN, now, waitPatch(b)) // a reload keeps the question waiting in the despacho
   // The rows written while the module was being swapped (the /reload-plugins row itself) come back from the
   // transcript; the thumbnails already made are kept.
@@ -907,7 +907,7 @@ async function openPane($: EngineInterface) {
 // file lately (see `tick`).
 async function paneSeen($: EngineInterface, now: number) {
   if ((await $.ui.panes()).some(p => p.id === PANE && p.isPlaced)) return true
-  const viewer = await readJson<{ at: number }>($, viewerFile(await home($)))
+  const viewer = await readJson($, viewerFile(await home($)))
   return !!viewer && now - viewer.at < VIEWER_FRESH
 }
 // Where a path lands with every symlink followed: the file's own, else its folder's plus its name (a file not there
@@ -1045,7 +1045,7 @@ async function reply($: EngineInterface, a: Extract<Act, { k: 'reply' }>) {
     const w = usable(await read($, world)), q = w?.agents.find(x => x.dept === a.dept && x.req === a.req)
     name = starterIn(w, a.dept)?.name ?? a.dept
     const whole = !!q && !isCutCmd(q.cmd) && !isMaskedCmd(q.cmd) && !isHiddenCmd(q.cmd) && !(q.held !== undefined && q.held <= await $.clock.now())
-    const b = whole ? await readJson<Beat>($, `${beatsDir(await home($))}/${a.dept}.json`) : null
+    const b = whole ? await readJson($, `${beatsDir(await home($))}/${a.dept}.json`) : null
     if (!Object.values(b?.agents ?? {}).some(x => x.req === a.req)) { answered.delete(a.req); return $.ui.toast(t('ask.expired', { chat: name })) }
   } catch (err) { answered.delete(a.req); return failed($, err) } // nothing sent: the request shows again
   return order($, a.dept, { kind: a.verdict, req: a.req }).then(() => {
@@ -1229,7 +1229,7 @@ async function redirectReload($: EngineInterface, sessionId: string) {
 // every session counts as another: it fails closed.
 async function commandThere($: EngineInterface, sessionId: string, text: string) {
   if ((beat && sessionId === beat.id) || !text.startsWith('/')) return null
-  const theirs = await readJson<unknown[]>($, commandsFile(await home($), sessionId)).catch(() => null)
+  const theirs = await readJson($, commandsFile(await home($), sessionId)).catch(() => null)
   const names = [...(Array.isArray(theirs) ? theirs.map(r => (Array.isArray(r) ? r[0] : null)) : []), ...(await $.command.list().catch(() => [])).map(c => c.name)]
   const run = asCommand(text, names.filter((n): n is string => typeof n === 'string'))
   return run ? `/${run.command}`.slice(0, 60) : null
@@ -1867,7 +1867,7 @@ export function register(on, options) {
     const tab = await read($, tabAtom)
     // The selected session's commands; one that has not published them (an older copy of the mod) borrows this
     // session's, which share your skills and plugins.
-    const listOf = async (id?: string) => (id ? await readJson<CmdRow[]>($, commandsFile(await home($), id)) : null)
+    const listOf = async (id?: string) => (id ? await readJson($, commandsFile(await home($), id)) : null)
     const cmds = (await listOf(dept?.id)) ?? (await listOf(beat?.id)) ?? []
     // "archive" is offered only for this pane's own session (the tool archives "self") and only while the app lists the tool.
     // The notes on your desk (the map's marker and its card): every office's question first, then the suggested sessions,
