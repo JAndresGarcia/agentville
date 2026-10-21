@@ -54,7 +54,7 @@ desktop app, install from your clone as [Install and update](docs/install-and-up
 - **Small and focused.** One fix or feature per pull request. Keep the structure the code already has, and add no
   dependency.
 - **Tested.** New logic comes with a test next to the existing ones in `agentville/tests/`, and the whole suite
-  passes.
+  passes. `bash scripts/check-plugin-files.sh` passes too: no file in `agentville/` over 256 KiB (split a big one).
 - **Style.** Match the surrounding code: TypeScript, short names, comments only for the why the code cannot show.
   No em dash in any text.
 - **Changelog.** Add a line under `## Unreleased` in [CHANGELOG.md](CHANGELOG.md) for anything a user would notice.

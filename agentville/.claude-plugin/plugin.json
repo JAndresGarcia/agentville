@@ -1,6 +1,6 @@
 {
   "name": "agentville",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Agentville: a pixel-art office for your Claude Code agents. Each session is an office; agents walk to your desk when they need your OK.",
   "author": {
     "name": "JAndresGarcia",
@@ -9,6 +9,9 @@
   "homepage": "https://github.com/JAndresGarcia/agentville",
   "repository": "https://github.com/JAndresGarcia/agentville",
   "license": "MIT",
+  "documentationUrl": "https://agentville.jandresgarcia.dev/docs/",
+  "supportUrl": "https://github.com/JAndresGarcia/agentville/issues",
+  "privacyPolicyUrl": "https://github.com/JAndresGarcia/agentville/blob/main/docs/privacy-and-files.md",
   "icon": "./icon.png",
   "keywords": [
     "agents",

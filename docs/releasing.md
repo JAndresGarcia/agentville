@@ -17,8 +17,11 @@ newest version heading in [CHANGELOG.md](../CHANGELOG.md).
 3. Check and test, with Claude Code 2.1.299 or newer:
 
    ```bash
-   claude plugin validate --strict agentville && claude plugin test agentville
+   claude plugin validate --strict agentville && claude plugin test agentville && bash scripts/check-plugin-files.sh
    ```
+
+   The last command fails when a file in `agentville/` is a symlink, or, unless it is an image or a font, is binary or
+   over 256 KiB: Anthropic's plugin directory holds such a plugin back, and `claude plugin test` cannot check it.
 
 4. Commit both files as `Release vX.Y.Z`. Before tagging, the maintainer checks that commit live in the desktop app.
 5. Tag the release in the public repository, [JAndresGarcia/agentville](https://github.com/JAndresGarcia/agentville),

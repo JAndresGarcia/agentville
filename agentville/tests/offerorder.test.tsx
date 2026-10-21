@@ -17,7 +17,7 @@ const START_TOOL = 'mcp__ccd_session__start_session', DISMISS_TOOL = 'mcp__ccd_s
 const LOCAL_ID = 'local_0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
 const CONSENT_DISMISS = 'The user pressed "Descartar" (dismiss) on a suggested session in Agentville.'
 
-// The heartbeat folder, the store and the panes from memory, as agentville.test.tsx serves them; `tools` answers the
+// The heartbeat folder, the store and the panes from memory, as pane.shared.tsx serves them; `tools` answers the
 // app's session tools (every call recorded); `submit` answers $.prompt.submit (every prompt recorded in `typed`); every
 // process run is recorded in `ran`, and /usr/bin/open exits with `exit.code`.
 type Submit = (e: { text: string }) => unknown

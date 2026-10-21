@@ -36,6 +36,8 @@ its known limits. The details live in [Privacy and files](docs/privacy-and-files
   `images/` (thumbnails and copies of pasted images), and `render-log.json` only while a diagnostic is on.
 - Its plugin store, `~/.claude/plugins/store/agentville_*.json`: the key that signs orders (`mailbox-key`) and your
   panel settings.
+- Your clipboard, only when you press a Copy button, copy a selection in the field, or a held-back `/command` cannot be
+  typed into its session's prompt box (you paste it there yourself).
 - Additions to each session's system prompt: the relay rule, and the team flow rule only when you chose a team flow.
 - With a team flow chosen, one fixed line appended to the prompt of the subagents it starts (its own and the session's,
   not other plugins'): "Before you start, write your plan with TodoWrite (if you have that tool) as 3 to 6 short steps,
@@ -63,11 +65,13 @@ Only these programs, by absolute path, with argv (no shell):
 | `/usr/bin/osascript`, `/usr/bin/pbpaste` | Read the clipboard on Cmd+V in the field |
 | `/usr/bin/open` | Open a session's chat in the Claude app, or an image in Preview, when you press for it |
 
-Inside Claude Code it uses the engine's own calls: it submits a prompt in its own session when an order says so, and
-runs a `/command` only from the panel's own field (a message that arrives from the mailbox is always a prompt, below).
-It fills the line of "▸ Start in its chat" (the button that starts a suggested session) or a `/command` the panel held
-back into its own empty prompt box (never sent), and calls the app's `dismiss_task` and `archive_session` (this session
-only) when you press for them. Each call carries a fixed consent text, never words a model wrote:
+Inside Claude Code it uses the engine's own calls. What you type in the panel's field for the panel's own session is
+submitted as if you typed it in that session's composer: a `/command` or skill named there runs as if you typed it
+(`/reload-plugins` excepted, which it never runs). In any other session it submits a prompt only when a signed order
+says so, and a message that arrives from the mailbox is always a prompt, never a command (below). It fills the line of
+"▸ Start in its chat" (the button that starts a suggested session) or a `/command` the panel held back into its own
+empty prompt box (never sent), and calls the app's `dismiss_task` and `archive_session` (this session only) when you
+press for them. Each call carries a fixed consent text, never words a model wrote:
 `The user pressed "Descartar" (dismiss) on a suggested session in Agentville.` for `dismiss_task`, and
 `The user pressed the archive reply on this session's question in Agentville.` for `archive_session`.
 

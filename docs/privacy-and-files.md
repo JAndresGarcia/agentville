@@ -55,14 +55,14 @@ is yours alone (`chmod 700`), for as long as [How long files are kept](#how-long
   `control/` (signed orders), `commands/`, `viewer.json`, `images/` (thumbnails and copies of pasted images), and
   `render-log.json` only while `/agentville calibrate` runs or the `render-log` debugging switch in the plugin store
   is on. See [How long files are kept](#how-long-files-are-kept).
-- The plugin store, `~/.claude/plugins/store/agentville_*.json` (`chmod 600`): the key that signs the panel's orders
-  (`mailbox-key`; the file is yours alone, but anything running as you can read it: MCP servers and other programs on
-  this machine, and Bash through a command that does not name the store, since the Bash guard is partial, see [Signing
-  and the folder](remote-control-and-mailbox.md#signing-and-the-folder)), your tour choices (flow, language, palette,
-  where it opens), the one-time `team-flow-migrated` marker, the `render-log` switch, the `vector-people` switch (true
-  draws the map's people as the old vector sprites, for comparison), offers already handled, the answers to dismiss
-  orders (`offer-acks`: ok, settled, gone, declined, unclear or failed, kept 10 minutes), a worktree and title cache, sync
-  marks.
+- The plugin store, `~/.claude/plugins/store/agentville_*.json`, a file Claude Code keeps (Agentville sets no file mode
+  on it): the key that signs the panel's orders (`mailbox-key`; anything running as you can read it: MCP servers and
+  other programs on this machine, and Bash through a command that does not name the store, since the Bash guard is
+  partial, see [Signing and the folder](remote-control-and-mailbox.md#signing-and-the-folder)), your tour choices (flow,
+  language, palette, where it opens), the one-time `team-flow-migrated` marker, the `render-log` switch, the
+  `vector-people` switch (true draws the map's people as the old vector sprites, for comparison), offers already
+  handled, the answers to dismiss orders (`offer-acks`: ok, settled, gone, declined, unclear or failed, kept 10
+  minutes), a worktree and title cache, sync marks.
 
 ## How long files are kept
 
@@ -92,6 +92,9 @@ opens an image in Preview, or opens that session's chat in the Claude app (`/usr
 `claude://claude.ai/epitaxy/local_<id>` link built from the app's own record). "▸ Start in its chat" opens it too,
 starting nothing itself and only leaving its line in that session's empty prompt box, never sent. "How to update" opens
 it as well and sends nothing: it only says to type `/reload-plugins` there (see [Update](install-and-update.md#update)).
+
+It writes to your clipboard only when you press a Copy button, copy a selection in the field, or a held-back
+`/command` cannot be typed into its session's prompt box (you paste it there yourself).
 
 ## Third-party assets
 

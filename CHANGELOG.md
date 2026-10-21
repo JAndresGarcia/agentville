@@ -5,6 +5,26 @@ and versions follow [Semantic Versioning](https://semver.org/). How a release is
 
 ## Unreleased
 
+## 1.0.1 - 2026-10-21
+
+Ready for Anthropic's plugin directory. Nothing changes in how the panel works.
+
+### Added
+
+- `agentville/README.md`: what the plugin runs, reads, writes and deletes, that it makes no network calls, its signed
+  orders between sessions, and the exact text it adds to Claude's prompt.
+- `plugin.json` names the documentation, support and privacy policy pages.
+- `scripts/check-plugin-files.sh`: fails when a tracked file in `agentville/` is a symlink, or, unless it is an image
+  or a font, is binary or over 256 KiB, which the plugin directory holds back.
+
+### Changed
+
+- Split files the directory would hold back for size, moving code as is: the pane's tests went from
+  `tests/agentville.test.tsx` into `tests/pane-1.test.tsx` and `tests/pane-2.test.tsx`, with their shared fixtures
+  in `tests/pane.shared.tsx`; the mailbox, the orders, the despacho's notes and the prompt rules went from
+  `hooks/register.tsx` into `hooks/orders.ts`.
+- `.gitignore` also leaves out `Thumbs.db`, `desktop.ini` and `__MACOSX/`.
+
 ## 1.0.0 - 2026-10-20
 
 First public release.

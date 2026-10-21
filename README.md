@@ -119,7 +119,8 @@ To add a language (a code change today; open a pull request if you want it shipp
 1. In `agentville/hooks/i18n.ts`, add its code to `Lang` and `langOf`, add a third text to every pair in `STRINGS`,
    and make `t` pick it by index.
 2. In `agentville/hooks/register.tsx`, add the code to the `lang es|en` command and to the ES | EN switch in the
-   panel's header (the `['es', 'en']` lists), and in `agentville/hooks/tour.ts` to the tour's language step.
+   panel's header (the `['es', 'en']` lists), in `agentville/hooks/orders.ts` to the relay rule's markers, and in
+   `agentville/hooks/tour.ts` to the tour's language step.
 3. The tour's layout in `agentville/hooks/tourlayout.ts` was measured for Spanish and English: give the new
    language the English layout to start with, and check that its longer texts still fit.
 4. Run `claude plugin test agentville` and fix what it reports.
