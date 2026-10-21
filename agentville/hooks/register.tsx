@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, UiCopyArgs, UiCopyResult, UiPressArgument } from 'claude-code'
+import type { EngineInterface, UiCopyArgs, UiCopyResult, UiPressArgument } from 'claude-code'
 import type { AgentvilleChat, AgentvilleDept, AgentvilleReply, AgentvilleUsage, AgentvilleWorld } from '../types'
 import { CMD_MAX, DISMISS, cmdTitle, isHiddenCmd, isImg, isToolCall, MAIN, METAS_MAX, SLEEP_MS, asksFrom, pressTitle, closedOk, closingsFrom, fillTextOf, isIdle, addSaid, addStep, asCommand, guardedCommand, guardedPath, HOLD_MS, isCutCmd, isMaskedCmd, trusted, TASK, offerOrderOk, beatsDir, carryOver, chatOfTranscript, claimSlot, imagesOf, bgFrom, chatFrom, commandsFile, controlFile, doing, endStep, isTaskList, metasOf, newBeat, notesFrom, openOf, pending, pushChat, roleOf, setAgent, titleFrom, viewerFile, OFFER_TTL, REFUSED, asksOfTranscript, asPrompt, signOf, chatPic, picHt } from './beat'
 import type { Beat, ChatPic, Cmd, CmdRow, ImgRef, Closing } from './beat'
@@ -44,8 +44,6 @@ export {
 } from './pure'
 export type { AckR, Tour, FillR, SubOut, Act, Elsewhere, Out, Page } from './pure'
 // The pane's request id, written here where its hooks' filters name it.
-type UnknownRows = unknown[]
-type CmdRows = CmdRow[]
 type RowPics = readonly ChatPic[]
 type OfferEntry = [string, OfferAck]
 type MarkEntry = [string, number]
@@ -109,7 +107,7 @@ export async function readJson<T>($: EngineInterface, path: string): Promise<T |
 }
 // A mailbox's orders; a missing or malformed file has none.
 export async function ordersAt($: EngineInterface, path: string): Promise<unknown[]> {
-  const cmds = (await readJson($, path))?.cmds
+  const cmds = (await readJson($, path) as { cmds?: unknown } | null)?.cmds
   return Array.isArray(cmds) ? cmds : []
 }
 export async function hiddenOf($: EngineInterface): Promise<Record<string, number>> {
@@ -915,7 +913,7 @@ async function openPane($: EngineInterface) {
 // file lately (see `tick`).
 async function paneSeen($: EngineInterface, now: number) {
   if ((await $.ui.panes()).some(p => p.id === PANE && p.isPlaced)) return true
-  const viewer = await readJson($, viewerFile(await homeDir($)))
+  const viewer: { at: number } | null = await readJson($, viewerFile(await homeDir($)))
   return !!viewer && now - viewer.at < VIEWER_FRESH
 }
 // Where a path lands with every symlink followed: the file's own, else its folder's plus its name (a file not there
@@ -1053,7 +1051,7 @@ async function reply($: EngineInterface, a: Extract<Act, { k: 'reply' }>) {
     const w = usable(await read($, world)), q = w?.agents.find(x => x.dept === a.dept && x.req === a.req)
     name = starterIn(w, a.dept)?.name ?? a.dept
     const whole = !!q && !isCutCmd(q.cmd) && !isMaskedCmd(q.cmd) && !isHiddenCmd(q.cmd) && !(q.held !== undefined && q.held <= await $.clock.now())
-    const b = whole ? await readJson($, `${beatsDir(await homeDir($))}/${a.dept}.json`) : null
+    const b: Beat | null = whole ? await readJson($, `${beatsDir(await homeDir($))}/${a.dept}.json`) : null
     if (!Object.values(b?.agents ?? {}).some(x => x.req === a.req)) { answered.delete(a.req); return $.ui.toast(t('ask.expired', { chat: name })) }
   } catch (err) { answered.delete(a.req); return orderFailed($, err) } // nothing sent: the request shows again
   return order($, a.dept, { kind: a.verdict, req: a.req }).then(() => {
@@ -1237,7 +1235,7 @@ async function redirectReload($: EngineInterface, sessionId: string) {
 // every session counts as another: it fails closed.
 async function commandThere($: EngineInterface, sessionId: string, text: string) {
   if ((beat && sessionId === beat.id) || !text.startsWith('/')) return null
-  const theirs = await readJson($, commandsFile(await homeDir($), sessionId)).catch(() => null)
+  const theirs = (await readJson($, commandsFile(await homeDir($), sessionId)).catch(() => null)) as unknown[] | null
   const names = [...(Array.isArray(theirs) ? theirs.map(r => (Array.isArray(r) ? r[0] : null)) : []), ...(await $.command.list().catch(() => [])).map(c => c.name)]
   const run = asCommand(text, names.filter((n): n is string => typeof n === 'string'))
   return run ? `/${run.command}`.slice(0, 60) : null
@@ -1441,7 +1439,8 @@ async function heldDenied($: EngineInterface, tool: string, input: unknown): Pro
 
 // shortcut: register's parameters carry no types (the plugin directory reads `export function register(on, options)`
 // plainly), so `on` is any and each hook's parameters are untyped (@ts-expect-error per hook); retype them should the
-// directory accept annotated parameters. RegisterChecked at the end still checks register against Register.
+// directory accept annotated parameters. tests/register.types.ts checks register against Register (the directory
+// refuses a second use of the name register in this file).
 // @ts-expect-error untyped on purpose, see above
 export function register(on, options) {
   const option = (options as { team_flow?: string } | undefined)?.team_flow
@@ -1875,7 +1874,7 @@ export function register(on, options) {
     const tab = await read($, tabAtom)
     // The selected session's commands; one that has not published them (an older copy of the mod) borrows this
     // session's, which share your skills and plugins.
-    const listOf = async (id?: string) => (id ? await readJson($, commandsFile(await homeDir($), id)) : null)
+    const listOf = async (id?: string): Promise<CmdRow[] | null> => (id ? await readJson($, commandsFile(await homeDir($), id)) : null)
     const cmds = (await listOf(dept?.id)) ?? (await listOf(beat?.id)) ?? []
     // "archive" is offered only for this pane's own session (the tool archives "self") and only while the app lists the tool.
     // The notes on your desk (the map's marker and its card): every office's question first, then the suggested sessions,
@@ -1959,7 +1958,7 @@ export function register(on, options) {
       const hit = (r: number) => {
         const row = only === undefined ? at + r : at, b = stripBand(row, runs), bp = bandProps(b, BTN_GLOW)
         clientEls += bandEls([b]).clients
-        return <Client key={`${client}~${row}`} module="./bandhits.tsx" props={{ ...bp, runs: bp.runs.map(([g, k, sc]) => (k ? [g, k, sc, r ? `${k}~${r + 1}` : k] : [g, k, sc])), words, ...tinted('btns') }} flexGrow={1} />
+        return <ui.Client key={`${client}~${row}`} module="./bandhits.tsx" props={{ ...bp, runs: bp.runs.map(([g, k, sc]) => (k ? [g, k, sc, r ? `${k}~${r + 1}` : k] : [g, k, sc])), words, ...tinted('btns') }} flexGrow={1} />
       }
       return (
         <Box position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column">
@@ -2003,8 +2002,8 @@ export function register(on, options) {
       const props: BtnsProps = { items, dir, colors: { ink: P.ink, dim: P.dim, accent: ACCENT, glow: BTN_GLOW }, ...tinted('btns') }
       clientEls += btnsElements(props)
       return grow
-        ? <Box key={`wrap-${key}`} width={0} flexGrow={1} overflow="hidden"><Client key={key} module="./btns.tsx" props={props} /></Box>
-        : <Client key={key} module="./btns.tsx" props={props} />
+        ? <Box key={`wrap-${key}`} width={0} flexGrow={1} overflow="hidden"><ui.Client key={key} module="./btns.tsx" props={props} /></Box>
+        : <ui.Client key={key} module="./btns.tsx" props={props} />
     }
     // paneList: the list's hit rows (every item has `cells`) as pane Buttons, drawn as btns.tsx's hitRow draws them in
     // its Client (same Boxes, keys and covers), each press going through `pressed` as the Client's post would.
@@ -2234,7 +2233,7 @@ export function register(on, options) {
         <Box key="hits" position="absolute" top={0} bottom={0} left={0} right={0} flexDirection="column">
           {drawn.map(b => (
             <Box key={`band-${b.row}`} height={0} flexGrow={g(b.y1 - b.y0)} flexDirection="column" overflow="hidden">
-              {live(b) || kept.has(b.row) ? <Client key={`hits-${b.row}`} module="./bandhits.tsx" props={{ ...bandProps(b, glow), ...tinted('hits') }} flexGrow={1} /> : null}
+              {live(b) || kept.has(b.row) ? <ui.Client key={`hits-${b.row}`} module="./bandhits.tsx" props={{ ...bandProps(b, glow), ...tinted('hits') }} flexGrow={1} /> : null}
             </Box>
           ))}
         </Box>
@@ -3202,7 +3201,7 @@ export function register(on, options) {
                     <Box flexDirection="row" gap="xs" alignItems={menuOpen ? 'flex-start' : 'center'}>
                       {face('me', 'me', 36, t('chat.you'))}
                       <Box key={`wrap-field-${dept.id}`} width={0} flexGrow={1} minWidth={0} overflow="hidden">
-                        <Client
+                        <ui.Client
                           key={`field-${dept.id}`}
                           module="./field.tsx"
                           props={{ placeholder: dept.asleep ? t('field.asleep') : relayTo ? t('field.to', { name: relayTo.name, hint: '' }).trimEnd() : t('field.to', { name, hint: permWait(dept.id) ? t('field.afterPerm') : busy(dept.id) ? t('field.busy') : t('field.hint') }), mine: t('field.mine'), more: t('field.more'), bg: '#151514', ink: '#ecebe8', dim: '#8e8b85', line: '#3a3936', focus: '#b9c6d8', sel: '#3d4a5c', clear: sentCount, ...(pasted.has(dept.id) ? { insert: pasted.get(dept.id)! } : {}), cmds, ...tinted('field') }}
